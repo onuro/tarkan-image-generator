@@ -25,6 +25,10 @@ export default defineSchema({
     numberOfImages: v.number(),
     imageStorageIds: v.array(v.id("_storage")),
     model: v.optional(v.string()),
+    promptTokens: v.optional(v.number()),
+    cachedTokens: v.optional(v.number()),
+    status: v.optional(v.union(v.literal("generating"), v.literal("complete"), v.literal("failed"))),
+    error: v.optional(v.string()),
     createdAt: v.number(),
   }).index("by_creation", ["createdAt"]),
 });

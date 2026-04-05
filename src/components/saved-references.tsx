@@ -15,9 +15,10 @@ import {
 interface SavedReferencesProps {
   onSelect: (storageId: Id<"_storage">, name: string) => void;
   selectedStorageId: Id<"_storage"> | null;
+  variant?: "link" | "box";
 }
 
-export function SavedReferences({ onSelect, selectedStorageId }: SavedReferencesProps) {
+export function SavedReferences({ onSelect, selectedStorageId, variant = "link" }: SavedReferencesProps) {
   const [open, setOpen] = useState(false);
   const references = useQuery(api.referenceImages.list);
   const removeRef = useMutation(api.referenceImages.remove);
@@ -29,9 +30,19 @@ export function SavedReferences({ onSelect, selectedStorageId }: SavedReferences
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer underline underline-offset-2"
+        className={variant === "box"
+          ? "size-24 rounded-lg border border-dashed border-border hover:border-muted-foreground/50 transition-colors flex flex-col items-center justify-center gap-1.5 text-muted-foreground cursor-pointer"
+          : "text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer underline underline-offset-2"
+        }
       >
-        {count > 0 ? `Browse saved references (${count})` : "No saved references"}
+        {variant === "box" ? (
+          <>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 17a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3.9a2 2 0 0 1-1.69-.9l-.81-1.2a2 2 0 0 0-1.67-.9H8a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2Z" /><path d="M2 8v11a2 2 0 0 0 2 2h14" /></svg>
+            <span className="text-xs">{count > 0 ? `Saved refs (${count})` : "Saved refs"}</span>
+          </>
+        ) : (
+          count > 0 ? `Browse saved references (${count})` : "No saved references"
+        )}
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>

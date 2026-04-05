@@ -17,6 +17,10 @@ export const list = query({
       numberOfImages: v.number(),
       imageStorageIds: v.array(v.id("_storage")),
       model: v.optional(v.string()),
+      promptTokens: v.optional(v.number()),
+      cachedTokens: v.optional(v.number()),
+      status: v.optional(v.union(v.literal("generating"), v.literal("complete"), v.literal("failed"))),
+      error: v.optional(v.string()),
       createdAt: v.number(),
     })
   ),
@@ -66,8 +70,33 @@ export const create = internalMutation({
       numberOfImages: args.numberOfImages,
       imageStorageIds: args.imageStorageIds,
       model: args.model,
+      status: "generating",
       createdAt: Date.now(),
     });
+  },
+});
+
+export const markComplete = internalMutation({
+  args: { generationId: v.id("generations") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.generationId, { status: "complete" });
+    return null;
+  },
+});
+
+export const markFailed = internalMutation({
+  args: {
+    generationId: v.id("generations"),
+    error: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.generationId, {
+      status: "failed",
+      error: args.error,
+    });
+    return null;
   },
 });
 
@@ -83,6 +112,23 @@ export const addImage = internalMutation({
 
     await ctx.db.patch(args.generationId, {
       imageStorageIds: [...generation.imageStorageIds, args.storageId],
+    });
+    return null;
+  },
+});
+
+export const addTokenUsage = internalMutation({
+  args: {
+    generationId: v.id("generations"),
+    promptTokens: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const generation = await ctx.db.get(args.generationId);
+    if (!generation) return null;
+
+    await ctx.db.patch(args.generationId, {
+      promptTokens: (generation.promptTokens ?? 0) + args.promptTokens,
     });
     return null;
   },

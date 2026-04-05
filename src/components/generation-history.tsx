@@ -130,22 +130,49 @@ export function GenerationHistory({
                 }`}
               >
                 {/* Checkbox */}
-                <input
-                  type="checkbox"
-                  checked={checkedIds.has(gen._id)}
-                  onChange={() => toggleChecked(gen._id)}
+                <label
+                  className="flex items-center self-stretch shrink-0 px-1 cursor-pointer"
                   onClick={(e) => e.stopPropagation()}
-                  className="h-3.5 w-3.5 rounded border-border accent-primary mt-0.5 shrink-0 cursor-pointer"
-                />
+                >
+                  <input
+                    type="checkbox"
+                    checked={checkedIds.has(gen._id)}
+                    onChange={() => toggleChecked(gen._id)}
+                    className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer"
+                  />
+                </label>
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{gen.prompt}</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {gen.imageStorageIds.length}{" "}
-                    {gen.imageStorageIds.length === 1 ? "image" : "images"}{" "}
-                    &middot; {gen.aspectRatio}
+                    {gen.status === "failed" ? (
+                      <span className="text-destructive">Failed</span>
+                    ) : gen.status === "generating" ? (
+                      <span className="text-yellow-500">Generating...</span>
+                    ) : (
+                      <>
+                        {gen.imageStorageIds.length}{" "}
+                        {gen.imageStorageIds.length === 1 ? "image" : "images"}
+                      </>
+                    )}
+                    {" "}&middot; {gen.aspectRatio}
                     {gen.model && <> &middot; {gen.model}</>}
+                    {gen.promptTokens != null && (
+                      <>
+                        {" "}&middot;{" "}
+                        {gen.promptTokens.toLocaleString()} tokens
+                        {" "}&middot;{" "}
+                        {(() => {
+                          const inputRate = gen.model === "nano-banana-pro" ? 2.0 : 0.5;
+                          const outputImageRate = gen.model === "nano-banana-pro" ? 0.134 : 0.067;
+                          const inputCost = (gen.promptTokens / 1_000_000) * inputRate;
+                          const outputCost = gen.imageStorageIds.length * outputImageRate;
+                          const total = inputCost + outputCost;
+                          return `$${total.toFixed(3)}`;
+                        })()}
+                      </>
+                    )}
                     {" "}&middot;{" "}
                     {new Date(gen.createdAt).toLocaleString()}
                   </p>

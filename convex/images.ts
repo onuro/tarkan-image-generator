@@ -57,7 +57,10 @@ async function generateWithGemini(
   prompt: string,
   referenceBase64: string | null,
   refMimeType: string
-): Promise<{ imageBytes: string; mimeType: string }[]> {
+): Promise<{
+  images: { imageBytes: string; mimeType: string }[];
+  promptTokens: number;
+}> {
   const parts: any[] = [{ text: prompt }];
 
   if (referenceBase64) {
@@ -77,6 +80,8 @@ async function generateWithGemini(
     },
   });
 
+  const promptTokens = response.usageMetadata?.promptTokenCount ?? 0;
+
   const images: { imageBytes: string; mimeType: string }[] = [];
   if (response.candidates?.[0]?.content?.parts) {
     for (const part of response.candidates[0].content.parts) {
@@ -88,7 +93,7 @@ async function generateWithGemini(
       }
     }
   }
-  return images;
+  return { images, promptTokens };
 }
 
 export const generate = action({
@@ -201,7 +206,7 @@ export const generate = action({
         }
 
         for (let i = 0; i < args.numberOfImages; i++) {
-          const images = await generateWithGemini(
+          const result = await generateWithGemini(
             ai,
             geminiModel,
             fullPrompt,
@@ -209,7 +214,12 @@ export const generate = action({
             refMimeType
           );
 
-          for (const img of images) {
+          await ctx.runMutation(internal.generations.addTokenUsage, {
+            generationId,
+            promptTokens: result.promptTokens,
+          });
+
+          for (const img of result.images) {
             const buffer = Buffer.from(img.imageBytes, "base64");
             const blob = new Blob([buffer], { type: img.mimeType });
             const storageId = await ctx.storage.store(blob);
@@ -220,6 +230,14 @@ export const generate = action({
           }
         }
       }
+      await ctx.runMutation(internal.generations.markComplete, { generationId });
+    } catch (e: any) {
+      const errorMsg = e?.message || String(e);
+      await ctx.runMutation(internal.generations.markFailed, {
+        generationId,
+        error: errorMsg.slice(0, 500),
+      });
+      throw e;
     } finally {
       if (args.referenceImageStorageId && !args.keepReference) {
         await ctx.storage.delete(args.referenceImageStorageId);

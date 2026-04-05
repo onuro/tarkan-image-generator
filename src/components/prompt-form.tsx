@@ -237,39 +237,40 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
         <Label>Reference Image (optional)</Label>
         <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
 
-        {referencePreview ? (
-          <div className="relative group">
-            <img src={referencePreview} alt="Reference" className="w-full h-32 object-cover rounded-lg border border-border" />
-            <div className="absolute top-2 right-2 flex gap-1">
-              <button type="button" onClick={handleSaveReference} title="Save to library" className="h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center text-xs hover:bg-black/80 transition-colors cursor-pointer">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
+        <div className="flex gap-3">
+          {referencePreview ? (
+            <div className="relative group flex-1 h-24">
+              <img src={referencePreview} alt="Reference" className="w-full h-full object-cover rounded-lg border border-border" />
+              <div className="absolute top-2 right-2 flex gap-1">
+                <button type="button" onClick={handleSaveReference} title="Save to library" className="h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center text-xs hover:bg-black/80 transition-colors cursor-pointer">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
+                </button>
+                <button type="button" onClick={clearReference} className="h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center text-xs hover:bg-black/80 transition-colors cursor-pointer">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                </button>
+              </div>
+            </div>
+          ) : savedRefStorageId ? (
+            <div className="flex-1 flex items-center gap-3 p-3 rounded-lg border border-primary/30 bg-primary/5 h-24">
+              <div className="h-10 w-10 rounded bg-muted shrink-0 overflow-hidden">
+                <SavedRefPreview storageId={savedRefStorageId} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{savedRefName}</p>
+                <p className="text-[11px] text-muted-foreground">Saved reference</p>
+              </div>
+              <button type="button" onClick={clearReference} className="h-6 w-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
               </button>
-              <button type="button" onClick={clearReference} className="h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center text-xs hover:bg-black/80 transition-colors cursor-pointer">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
-              </button>
             </div>
-          </div>
-        ) : savedRefStorageId ? (
-          <div className="flex items-center gap-3 p-3 rounded-lg border border-primary/30 bg-primary/5">
-            <div className="h-10 w-10 rounded bg-muted shrink-0 overflow-hidden">
-              <SavedRefPreview storageId={savedRefStorageId} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{savedRefName}</p>
-              <p className="text-[11px] text-muted-foreground">Saved reference</p>
-            </div>
-            <button type="button" onClick={clearReference} className="h-6 w-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+          ) : (
+            <button type="button" onClick={() => fileInputRef.current?.click()} className="flex-1 h-24 rounded-lg border border-dashed border-border hover:border-muted-foreground/50 transition-colors flex flex-col items-center justify-center gap-1.5 text-muted-foreground cursor-pointer">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" x2="12" y1="3" y2="15" /></svg>
+              <span className="text-xs">Upload or paste (⌘V)</span>
             </button>
-          </div>
-        ) : (
-          <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full h-24 rounded-lg border border-dashed border-border hover:border-muted-foreground/50 transition-colors flex flex-col items-center justify-center gap-1.5 text-muted-foreground cursor-pointer">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" x2="12" y1="3" y2="15" /></svg>
-            <span className="text-xs">Upload or paste (⌘V) reference image</span>
-          </button>
-        )}
-
-        <SavedReferences onSelect={handleSelectSavedRef} selectedStorageId={savedRefStorageId} />
+          )}
+          <SavedReferences onSelect={handleSelectSavedRef} selectedStorageId={savedRefStorageId} variant="box" />
+        </div>
       </div>
 
       {/* Style Preset */}
@@ -334,8 +335,8 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <Button type="submit" className="w-full" disabled={!prompt.trim()}>
-        {hasReference ? "Edit with Reference" : "Generate"}
+      <Button type="submit" className="w-full" disabled={!prompt.trim() || inFlightCount >= 3}>
+        {inFlightCount >= 3 ? "Limit reached (3/3)" : hasReference ? "Edit with Reference" : "Generate"}
       </Button>
 
       {inFlightCount > 0 && (
