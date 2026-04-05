@@ -232,12 +232,21 @@ export const generate = action({
       }
       await ctx.runMutation(internal.generations.markComplete, { generationId });
     } catch (e: any) {
-      const errorMsg = e?.message || String(e);
+      const raw = e?.message || String(e);
+      let errorMsg: string;
+
+      if (raw.includes('"code":429') || raw.includes("RESOURCE_EXHAUSTED")) {
+        const retryMatch = raw.match(/Please retry in (\d+h\d+m)/);
+        const retryInfo = retryMatch ? ` Try again in ~${retryMatch[1]}.` : " Try again tomorrow.";
+        errorMsg = `Daily API quota exceeded (250 requests).${retryInfo}`;
+      } else {
+        errorMsg = raw.slice(0, 500);
+      }
+
       await ctx.runMutation(internal.generations.markFailed, {
         generationId,
-        error: errorMsg.slice(0, 500),
+        error: errorMsg,
       });
-      throw e;
     } finally {
       if (args.referenceImageStorageId && !args.keepReference) {
         await ctx.storage.delete(args.referenceImageStorageId);

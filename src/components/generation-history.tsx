@@ -146,7 +146,9 @@ export function GenerationHistory({
                   <p className="text-sm font-medium truncate">{gen.prompt}</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {gen.status === "failed" ? (
-                      <span className="text-destructive">Failed</span>
+                      <span className="text-destructive">
+                        {gen.error || "Failed"}
+                      </span>
                     ) : gen.status === "generating" ? (
                       <span className="text-yellow-500">Generating...</span>
                     ) : (
