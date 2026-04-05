@@ -77,6 +77,7 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
   const [referencePreview, setReferencePreview] = useState<string | null>(null);
   const [savedRefStorageId, setSavedRefStorageId] = useState<Id<"_storage"> | null>(null);
   const [savedRefName, setSavedRefName] = useState<string | null>(null);
+  const [refPreviewOpen, setRefPreviewOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const generate = useAction(api.images.generate);
@@ -104,6 +105,14 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
     reader.onload = (e) => setReferencePreview(e.target?.result as string);
     reader.readAsDataURL(file);
   };
+
+  // Close ref preview on Escape
+  useEffect(() => {
+    if (!refPreviewOpen) return;
+    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") setRefPreviewOpen(false); };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [refPreviewOpen]);
 
   // Listen for clipboard paste
   useEffect(() => {
@@ -191,9 +200,9 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-9">
       {/* Prompt */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         <div className="flex items-center justify-between">
           <Label htmlFor="prompt">Prompt</Label>
           <SavedPrompts onSelect={(text) => setPrompt(text)} />
@@ -204,16 +213,16 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           rows={4}
-          className="resize-none"
+          className="resize-none border-transparent bg-zinc-800/40"
 
         />
       </div>
 
       {/* Model */}
       <div>
-        <Label className="mb-2 block">Model</Label>
+        <Label className="mb-3 block">Model</Label>
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex items-center justify-between w-full rounded-lg border border-border bg-background px-3 py-2 text-sm hover:bg-accent transition-colors">
+          <DropdownMenuTrigger className="flex items-center justify-between w-full rounded-lg bg-zinc-800/40 px-4 py-2.5 text-sm hover:bg-zinc-800/60 transition-colors">
             <span>{currentModel?.label}</span>
             <ChevronDown />
           </DropdownMenuTrigger>
@@ -240,7 +249,7 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
         <div className="flex gap-3">
           {referencePreview ? (
             <div className="relative group flex-1 h-24">
-              <img src={referencePreview} alt="Reference" className="w-full h-full object-cover rounded-lg border border-border" />
+              <img src={referencePreview} alt="Reference" className="w-full h-full object-cover rounded-xl border border-border cursor-pointer" onClick={() => setRefPreviewOpen(true)} />
               <div className="absolute top-2 right-2 flex gap-1">
                 <button type="button" onClick={handleSaveReference} title="Save to library" className="h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center text-xs hover:bg-black/80 transition-colors cursor-pointer">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
@@ -251,11 +260,11 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
               </div>
             </div>
           ) : savedRefStorageId ? (
-            <div className="flex-1 flex items-center gap-3 p-3 rounded-lg border border-primary/30 bg-primary/5 h-24">
-              <div className="h-10 w-10 rounded bg-muted shrink-0 overflow-hidden">
+            <div className="flex-1 flex items-center gap-4 px-5 py-3 rounded-lg bg-zinc-800/40 h-24">
+              <button type="button" onClick={() => setRefPreviewOpen(true)} className="h-10 w-10 rounded bg-muted shrink-0 overflow-hidden cursor-pointer">
                 <SavedRefPreview storageId={savedRefStorageId} />
-              </div>
-              <div className="flex-1 min-w-0">
+              </button>
+              <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setRefPreviewOpen(true)}>
                 <p className="text-sm font-medium truncate">{savedRefName}</p>
                 <p className="text-[11px] text-muted-foreground">Saved reference</p>
               </div>
@@ -264,7 +273,7 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
               </button>
             </div>
           ) : (
-            <button type="button" onClick={() => fileInputRef.current?.click()} className="flex-1 h-24 rounded-lg border border-dashed border-border hover:border-muted-foreground/50 transition-colors flex flex-col items-center justify-center gap-1.5 text-muted-foreground cursor-pointer">
+            <button type="button" onClick={() => fileInputRef.current?.click()} className="flex-1 h-24 rounded-lg bg-zinc-800/30 hover:bg-zinc-800/50 transition-colors flex flex-col items-center justify-center gap-2.5 text-muted-foreground/70 cursor-pointer">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" x2="12" y1="3" y2="15" /></svg>
               <span className="text-xs">Upload or paste (⌘V)</span>
             </button>
@@ -274,11 +283,11 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
       </div>
 
       {/* Style Preset */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         <Label>Style</Label>
         <div className="flex flex-wrap gap-2">
           {STYLE_PRESETS.map((style) => (
-            <button key={style.value} type="button" onClick={() => setStylePreset(style.value)}              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${stylePreset === style.value ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}>
+            <button key={style.value} type="button" onClick={() => setStylePreset(style.value)}              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors cursor-pointer ${stylePreset === style.value ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}>
               {style.label}
             </button>
           ))}
@@ -289,9 +298,9 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
       <div className="flex items-center justify-between">
         <div>
           <Label className="text-sm">AI Enhance</Label>
-          <p className="text-xs text-muted-foreground">Rewrite prompt with Gemini for better results</p>
+          <p className="text-xs text-muted-foreground mt-1.5">Rewrite prompt with Gemini for better results</p>
         </div>
-        <button type="button" role="switch" aria-checked={enhancePrompt} onClick={() => setEnhancePrompt(!enhancePrompt)}          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${enhancePrompt ? "bg-primary" : "bg-muted"}`}>
+        <button type="button" role="switch" aria-checked={enhancePrompt} onClick={() => setEnhancePrompt(!enhancePrompt)}          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${enhancePrompt ? "bg-zinc-400" : "bg-zinc-700"}`}>
           <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm ring-0 transition-transform ${enhancePrompt ? "translate-x-4" : "translate-x-0"}`} />
         </button>
       </div>
@@ -299,9 +308,9 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
       {/* Aspect Ratio + Image Count */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label className="mb-2 block">Aspect Ratio</Label>
+          <Label className="mb-3 block">Aspect Ratio</Label>
           <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center justify-between w-full rounded-lg border border-border bg-background px-3 py-2 text-sm hover:bg-accent transition-colors">
+            <DropdownMenuTrigger className="flex items-center justify-between w-full rounded-lg bg-zinc-800/40 px-4 py-2.5 text-sm hover:bg-zinc-800/60 transition-colors">
               <span>{ASPECT_RATIOS.find((r) => r.value === aspectRatio)?.label}</span>
               <ChevronDown />
             </DropdownMenuTrigger>
@@ -316,9 +325,9 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
         </div>
 
         <div>
-          <Label className="mb-2 block">Images</Label>
+          <Label className="mb-3 block">Images</Label>
           <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center justify-between w-full rounded-lg border border-border bg-background px-3 py-2 text-sm hover:bg-accent transition-colors">
+            <DropdownMenuTrigger className="flex items-center justify-between w-full rounded-lg bg-zinc-800/40 px-4 py-2.5 text-sm hover:bg-zinc-800/60 transition-colors">
               <span>{numberOfImages} {numberOfImages === 1 ? "image" : "images"}</span>
               <ChevronDown />
             </DropdownMenuTrigger>
@@ -335,7 +344,7 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <Button type="submit" className="w-full" disabled={!prompt.trim() || inFlightCount >= 3}>
+      <Button type="submit" className="w-full h-12 text-base rounded-full" disabled={!prompt.trim() || inFlightCount >= 3}>
         {inFlightCount >= 3 ? "Limit reached (3/3)" : hasReference ? "Edit with Reference" : "Generate"}
       </Button>
 
@@ -351,20 +360,40 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
 
       {/* Model indicator */}
       <div className="flex items-center gap-2 pt-1 flex-wrap">
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-muted text-[11px] text-muted-foreground">
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted text-[11px] text-muted-foreground">
           {currentModel?.label ?? model}
         </div>
         {stylePreset !== "none" && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-muted text-[11px] text-muted-foreground">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted text-[11px] text-muted-foreground">
             + {currentStyle?.label}
           </div>
         )}
         {enhancePrompt && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-muted text-[11px] text-muted-foreground">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted text-[11px] text-muted-foreground">
             + AI Enhance
           </div>
         )}
       </div>
+      {/* Reference Image Preview Modal */}
+      {refPreviewOpen && (referencePreview || savedRefStorageId) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setRefPreviewOpen(false)}>
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+          <div className="relative max-w-3xl max-h-[80vh] p-4" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setRefPreviewOpen(false)}
+              className="absolute top-2 right-2 z-10 h-8 w-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 transition-colors cursor-pointer"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+            </button>
+            {referencePreview ? (
+              <img src={referencePreview} alt="Reference preview" className="max-w-full max-h-[80vh] object-contain rounded-xl" />
+            ) : savedRefStorageId ? (
+              <SavedRefFullPreview storageId={savedRefStorageId} />
+            ) : null}
+          </div>
+        </div>
+      )}
     </form>
   );
 }
@@ -373,4 +402,10 @@ function SavedRefPreview({ storageId }: { storageId: Id<"_storage"> }) {
   const url = useQuery(api.referenceImages.getUrl, { storageId });
   if (!url) return <div className="w-full h-full bg-muted animate-pulse" />;
   return <img src={url} alt="" className="w-full h-full object-cover" />;
+}
+
+function SavedRefFullPreview({ storageId }: { storageId: Id<"_storage"> }) {
+  const url = useQuery(api.referenceImages.getUrl, { storageId });
+  if (!url) return <div className="w-40 h-40 bg-muted animate-pulse rounded-xl" />;
+  return <img src={url} alt="Reference preview" className="max-w-full max-h-[80vh] object-contain rounded-xl" />;
 }

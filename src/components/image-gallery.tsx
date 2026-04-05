@@ -31,7 +31,7 @@ export function ImageGallery({ storageIds, numberOfImages, prompt, model, origin
 
   return (
     <>
-      <div className={`grid gap-4 ${cols}`}>
+      <div className={`grid gap-5 ${cols}`}>
         {/* Rendered images */}
         {storageIds.length > 0 && !urls ? (
           // URLs still loading for existing storage IDs
@@ -46,7 +46,7 @@ export function ImageGallery({ storageIds, numberOfImages, prompt, model, origin
             <button
               key={i}
               onClick={() => setPreviewIndex(i)}
-              className="group relative overflow-hidden rounded-lg border border-border bg-muted transition-all hover:ring-2 hover:ring-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+              className="group relative overflow-hidden rounded-lg bg-muted transition-all duration-200 hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
             >
               <img
                 src={url}

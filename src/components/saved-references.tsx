@@ -31,14 +31,14 @@ export function SavedReferences({ onSelect, selectedStorageId, variant = "link" 
         type="button"
         onClick={() => setOpen(true)}
         className={variant === "box"
-          ? "size-24 rounded-lg border border-dashed border-border hover:border-muted-foreground/50 transition-colors flex flex-col items-center justify-center gap-1.5 text-muted-foreground cursor-pointer"
+          ? "size-24 rounded-lg bg-zinc-800/30 hover:bg-zinc-800/50 transition-colors flex flex-col items-center justify-center gap-2.5 text-muted-foreground/70 cursor-pointer"
           : "text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer underline underline-offset-2"
         }
       >
         {variant === "box" ? (
           <>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 17a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3.9a2 2 0 0 1-1.69-.9l-.81-1.2a2 2 0 0 0-1.67-.9H8a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2Z" /><path d="M2 8v11a2 2 0 0 0 2 2h14" /></svg>
-            <span className="text-xs">{count > 0 ? `Saved refs (${count})` : "Saved refs"}</span>
+            <span className="text-xs">{count > 0 ? `Refs (${count})` : "Refs"}</span>
           </>
         ) : (
           count > 0 ? `Browse saved references (${count})` : "No saved references"
@@ -54,7 +54,7 @@ export function SavedReferences({ onSelect, selectedStorageId, variant = "link" 
           {!references ? (
             <div className="grid grid-cols-4 gap-4 py-4">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="aspect-square rounded-lg bg-muted animate-pulse" />
+                <div key={i} className="aspect-square rounded-xl bg-muted animate-pulse" />
               ))}
             </div>
           ) : references.length === 0 ? (
@@ -108,7 +108,7 @@ function RefThumbnail({
       <button
         type="button"
         onClick={onSelect}
-        className={`w-full aspect-square rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${
+        className={`w-full aspect-square rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
           isSelected
             ? "border-primary ring-2 ring-primary/30"
             : "border-border hover:border-muted-foreground/50"

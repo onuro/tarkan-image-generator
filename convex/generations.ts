@@ -80,6 +80,8 @@ export const markComplete = internalMutation({
   args: { generationId: v.id("generations") },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const doc = await ctx.db.get(args.generationId);
+    if (!doc) return null;
     await ctx.db.patch(args.generationId, { status: "complete" });
     return null;
   },
@@ -92,6 +94,8 @@ export const markFailed = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const doc = await ctx.db.get(args.generationId);
+    if (!doc) return null;
     await ctx.db.patch(args.generationId, {
       status: "failed",
       error: args.error,
