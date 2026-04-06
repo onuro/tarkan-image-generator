@@ -55,19 +55,19 @@ async function generateWithGemini(
   ai: GoogleGenAI,
   modelName: string,
   prompt: string,
-  referenceBase64: string | null,
-  refMimeType: string
+  refImages: { base64: string; mimeType: string; label: string }[]
 ): Promise<{
   images: { imageBytes: string; mimeType: string }[];
   promptTokens: number;
 }> {
   const parts: any[] = [{ text: prompt }];
 
-  if (referenceBase64) {
+  for (const ref of refImages) {
+    parts.push({ text: `[Reference image ${ref.label}]` });
     parts.push({
       inlineData: {
-        mimeType: refMimeType,
-        data: referenceBase64,
+        mimeType: ref.mimeType,
+        data: ref.base64,
       },
     });
   }
@@ -104,8 +104,8 @@ export const generate = action({
     styleSuffix: v.optional(v.string()),
     aspectRatio: v.string(),
     numberOfImages: v.number(),
-    referenceImageStorageId: v.optional(v.id("_storage")),
-    keepReference: v.optional(v.boolean()),
+    referenceImageStorageIds: v.optional(v.array(v.id("_storage"))),
+    keepReferenceIds: v.optional(v.array(v.id("_storage"))),
     enhancePrompt: v.optional(v.boolean()),
     model: v.optional(v.string()),
   },
@@ -136,19 +136,23 @@ export const generate = action({
     }
 
     // Get reference image data if provided
-    let refBase64: string | null = null;
-    let refMimeType = "image/png";
-    if (args.referenceImageStorageId) {
-      const refBlob = await ctx.storage.get(args.referenceImageStorageId);
-      if (!refBlob) throw new Error("Reference image not found in storage.");
-      const refBuffer = Buffer.from(await refBlob.arrayBuffer());
-      refBase64 = refBuffer.toString("base64");
-      refMimeType = refBlob.type || "image/png";
+    const refImages: { base64: string; mimeType: string; label: string }[] = [];
+    if (args.referenceImageStorageIds?.length) {
+      for (let i = 0; i < args.referenceImageStorageIds.length; i++) {
+        const refBlob = await ctx.storage.get(args.referenceImageStorageIds[i]);
+        if (!refBlob) throw new Error(`Reference image @img${i + 1} not found in storage.`);
+        const refBuffer = Buffer.from(await refBlob.arrayBuffer());
+        refImages.push({
+          base64: refBuffer.toString("base64"),
+          mimeType: refBlob.type || "image/png",
+          label: `@img${i + 1}`,
+        });
+      }
     }
 
     // Determine the actual model that will be used
     const actualModel =
-      isImagen && !refBase64
+      isImagen && refImages.length === 0
         ? "imagen-4"
         : isImagen
           ? "nano-banana-pro"
@@ -169,7 +173,7 @@ export const generate = action({
     });
 
     try {
-      if (isImagen && !refBase64) {
+      if (isImagen && refImages.length === 0) {
         const aspectRatio = args.aspectRatio === "auto" ? "1:1" : args.aspectRatio;
 
         const response = await ai.models.generateImages({
@@ -210,8 +214,7 @@ export const generate = action({
             ai,
             geminiModel,
             fullPrompt,
-            refBase64,
-            refMimeType
+            refImages
           );
 
           await ctx.runMutation(internal.generations.addTokenUsage, {
@@ -248,8 +251,13 @@ export const generate = action({
         error: errorMsg,
       });
     } finally {
-      if (args.referenceImageStorageId && !args.keepReference) {
-        await ctx.storage.delete(args.referenceImageStorageId);
+      if (args.referenceImageStorageIds) {
+        const keepSet = new Set((args.keepReferenceIds ?? []).map((id) => id.toString()));
+        for (const sid of args.referenceImageStorageIds) {
+          if (!keepSet.has(sid.toString())) {
+            await ctx.storage.delete(sid);
+          }
+        }
       }
     }
 

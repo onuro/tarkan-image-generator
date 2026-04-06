@@ -4,21 +4,21 @@ import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogTitle,
   DialogHeader,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 interface SavedReferencesProps {
-  onSelect: (storageId: Id<"_storage">, name: string) => void;
-  selectedStorageId: Id<"_storage"> | null;
+  onSelect: (storageId: Id<"_storage">, name: string, url: string) => void;
+  selectedStorageIds: Set<string>;
   variant?: "link" | "box";
 }
 
-export function SavedReferences({ onSelect, selectedStorageId, variant = "link" }: SavedReferencesProps) {
+export function SavedReferences({ onSelect, selectedStorageIds, variant = "link" }: SavedReferencesProps) {
   const [open, setOpen] = useState(false);
   const references = useQuery(api.referenceImages.list);
   const removeRef = useMutation(api.referenceImages.remove);
@@ -31,14 +31,14 @@ export function SavedReferences({ onSelect, selectedStorageId, variant = "link" 
         type="button"
         onClick={() => setOpen(true)}
         className={variant === "box"
-          ? "size-24 rounded-lg bg-zinc-800/30 hover:bg-zinc-800/50 transition-colors flex flex-col items-center justify-center gap-2.5 text-muted-foreground/70 cursor-pointer"
+          ? "size-20 shrink-0 rounded-lg bg-zinc-800/30 hover:bg-zinc-800/50 transition-colors flex flex-col items-center justify-center gap-2 text-muted-foreground/70 cursor-pointer"
           : "text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer underline underline-offset-2"
         }
       >
         {variant === "box" ? (
           <>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 17a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3.9a2 2 0 0 1-1.69-.9l-.81-1.2a2 2 0 0 0-1.67-.9H8a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2Z" /><path d="M2 8v11a2 2 0 0 0 2 2h14" /></svg>
-            <span className="text-xs">{count > 0 ? `Refs (${count})` : "Refs"}</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 17a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3.9a2 2 0 0 1-1.69-.9l-.81-1.2a2 2 0 0 0-1.67-.9H8a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2Z" /><path d="M2 8v11a2 2 0 0 0 2 2h14" /></svg>
+            <span className="text-[11px]">{count > 0 ? `Refs (${count})` : "Refs"}</span>
           </>
         ) : (
           count > 0 ? `Browse saved references (${count})` : "No saved references"
@@ -68,16 +68,21 @@ export function SavedReferences({ onSelect, selectedStorageId, variant = "link" 
                 <RefThumbnail
                   key={ref._id}
                   refImage={ref}
-                  isSelected={selectedStorageId === ref.storageId}
-                  onSelect={() => {
-                    onSelect(ref.storageId, ref.name);
-                    setOpen(false);
+                  isSelected={selectedStorageIds.has(ref.storageId)}
+                  onSelect={(url) => {
+                    onSelect(ref.storageId, ref.name, url);
                   }}
                   onRemove={() => removeRef({ id: ref._id })}
                 />
               ))}
             </div>
           )}
+
+          <div className="flex justify-end pt-2">
+            <Button variant="secondary" size="sm" onClick={() => setOpen(false)}>
+              Done
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </>
@@ -96,7 +101,7 @@ function RefThumbnail({
     name: string;
   };
   isSelected: boolean;
-  onSelect: () => void;
+  onSelect: (url: string) => void;
   onRemove: () => void;
 }) {
   const url = useQuery(api.referenceImages.getUrl, {
@@ -107,7 +112,7 @@ function RefThumbnail({
     <div className="relative group">
       <button
         type="button"
-        onClick={onSelect}
+        onClick={() => url && onSelect(url)}
         className={`w-full aspect-square rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
           isSelected
             ? "border-primary ring-2 ring-primary/30"
@@ -122,6 +127,13 @@ function RefThumbnail({
           />
         ) : (
           <div className="w-full h-full bg-muted animate-pulse" />
+        )}
+        {isSelected && (
+          <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </div>
         )}
       </button>
       <button

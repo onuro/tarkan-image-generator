@@ -16,16 +16,19 @@ interface ImageGalleryProps {
   styleSuffix?: string;
   wasEnhanced?: boolean;
   enhancedPrompt?: string;
+  status?: string;
+  error?: string;
 }
 
-export function ImageGallery({ storageIds, numberOfImages, prompt, model, originalPrompt, stylePreset, styleSuffix, wasEnhanced, enhancedPrompt }: ImageGalleryProps) {
+export function ImageGallery({ storageIds, numberOfImages, prompt, model, originalPrompt, stylePreset, styleSuffix, wasEnhanced, enhancedPrompt, status, error }: ImageGalleryProps) {
   const urls = useQuery(api.generations.getImageUrls, {
     storageIds: storageIds.length > 0 ? storageIds : [],
   });
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   const validUrls = urls?.filter((url): url is string => url !== null) ?? [];
-  const remainingSkeletons = numberOfImages - storageIds.length;
+  const isFailed = status === "failed";
+  const remainingSkeletons = isFailed ? 0 : numberOfImages - storageIds.length;
   const isStillGenerating = remainingSkeletons > 0;
   const cols = numberOfImages === 1 ? "grid-cols-1" : "grid-cols-2";
 
@@ -92,6 +95,27 @@ export function ImageGallery({ storageIds, numberOfImages, prompt, model, origin
             </div>
           ))}
       </div>
+
+      {isFailed && validUrls.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+          <svg
+            width="48"
+            height="48"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="mb-4 text-destructive/50"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <p className="text-sm text-destructive">{error || "Generation failed"}</p>
+        </div>
+      )}
 
       {isStillGenerating && (
         <p className="text-xs text-muted-foreground text-center mt-4">

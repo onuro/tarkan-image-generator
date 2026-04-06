@@ -131,6 +131,8 @@ export default function Home() {
               styleSuffix={selectedGeneration.styleSuffix}
               wasEnhanced={selectedGeneration.wasEnhanced}
               enhancedPrompt={selectedGeneration.enhancedPrompt}
+              status={selectedGeneration.status}
+              error={selectedGeneration.error}
             />
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
