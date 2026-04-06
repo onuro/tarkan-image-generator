@@ -86,7 +86,7 @@
 .dark {
   --background: oklch(0.141 0.005 285.823);
   --foreground: oklch(0.985 0.002 247.839);
-  --card: oklch(0.21 0.006 285.885);
+  --card: #1B1B1E;
   --card-foreground: oklch(0.985 0.002 247.839);
   --popover: oklch(0.21 0.006 285.885);
   --popover-foreground: oklch(0.985 0.002 247.839);
@@ -121,12 +121,15 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+
   html {
     @apply font-sans;
   }
+
   button,
   [role="button"],
   a,

@@ -6,13 +6,16 @@ A full-stack AI image generation app built with Next.js, Convex, and Google's Ge
 
 - **Text-to-Image Generation** with multiple Google AI models (Imagen 4, Gemini 3 Pro, Gemini 3.1 Flash)
 - **Prompt Enhancement** — auto-expands short prompts using Gemini 2.5 Flash
-- **Reference Image Support** — upload images to guide generation
+- **Multi-Reference Images** — attach up to 14 reference images per generation (upload, paste, or pick from saved library)
+- **@Mention Autocomplete** — type `@` in the prompt to reference attached images by label (`@img1`, `@img2`, etc.) with thumbnail previews
 - **11 Style Presets** — photorealistic, 3D render, anime, oil painting, watercolor, cinematic, and more
 - **Aspect Ratio Control** — auto, 1:1, 16:9, 9:16, 4:3, 3:4
-- **Batch Generation** — generate 1–4 images per prompt
+- **Batch Generation** — generate 1–4 images per prompt, up to 3 concurrent generations
+- **Generation Status Tracking** — real-time status (generating/complete/failed) with error display
 - **Generation History** — browse, preview, and bulk-delete past generations
-- **Saved Prompts & References** — store and reuse favorites
-- **Token Usage Tracking** — see prompt token and cache stats per generation
+- **Saved Prompts & References** — store and reuse favorites with multi-select in reference library
+- **Token Usage & Cost Estimates** — see prompt tokens and estimated cost per generation
+- **Quota Management** — friendly error messages and UI banner when daily API limits are reached
 
 ## Tech Stack
 

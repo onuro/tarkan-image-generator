@@ -50,9 +50,9 @@ export default function Home() {
   return (
     <div className="flex h-screen bg-background overflow-hidden p-3 gap-3">
       {/* Combined Sidebar */}
-      <div className="flex shrink-0 rounded-2xl overflow-hidden">
+      <div className="flex shrink-0 rounded-2xl overflow-hidden bg-card/75">
         {/* Sidebar 1: Logo + Create */}
-        <div className="w-[420px] shrink-0 flex flex-col bg-card">
+        <div className="w-[420px] shrink-0 flex flex-col bg-card rounded-r-2xl">
           {/* Logo */}
           <div className="flex items-center gap-4 px-7 h-18 border-b border-border/50">
             <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center">
@@ -86,22 +86,22 @@ export default function Home() {
         </div>
 
         {/* Sidebar 2: History */}
-        <div className="w-96 shrink-0 flex flex-col bg-card/50 border-l border-border/50">
-        <div className="flex items-center justify-between px-7 h-18 shrink-0 border-b border-border/50">
-          <h2 className="text-sm font-semibold">History</h2>
-          {generations && (
-            <span className="text-[11px] text-muted-foreground tabular-nums">
-              {generations.reduce((sum, g) => sum + g.imageStorageIds.length, 0)} images &middot; {generations.length} runs
-            </span>
-          )}
+        <div className="w-96 shrink-0 flex flex-col">
+          <div className="flex items-center justify-between px-7 h-18 shrink-0 border-b border-border/50">
+            <h2 className="text-sm font-semibold">History</h2>
+            {generations && (
+              <span className="text-[11px] text-muted-foreground tabular-nums">
+                {generations.reduce((sum, g) => sum + g.imageStorageIds.length, 0)} images &middot; {generations.length} runs
+              </span>
+            )}
+          </div>
+          <div className="flex-1 overflow-auto">
+            <GenerationHistory
+              selectedId={selectedId}
+              onSelect={handleSelectGeneration}
+            />
+          </div>
         </div>
-        <div className="flex-1 overflow-auto">
-          <GenerationHistory
-            selectedId={selectedId}
-            onSelect={handleSelectGeneration}
-          />
-        </div>
-      </div>
       </div>
 
       {/* Main: Result / Gallery */}

@@ -84,7 +84,7 @@ export function GenerationHistory({
   return (
     <div className="flex flex-col h-full">
       {/* Bulk actions bar */}
-      <div className="flex items-center justify-between pl-12 pr-8 pt-7 pb-2">
+      <div className="flex items-center justify-between pl-8 pr-8 pt-7 pb-2">
         <label className="flex items-center gap-3 text-xs text-muted-foreground cursor-pointer select-none">
           <input
             type="checkbox"
@@ -108,7 +108,7 @@ export function GenerationHistory({
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-auto px-8 pb-8 pt-2">
+      <div className="flex-1 overflow-auto px-4 pb-8 pt-2">
         <div className="space-y-3">
           {generations.map((gen, i) => (
             <div key={gen._id}>
@@ -124,9 +124,8 @@ export function GenerationHistory({
                     onSelect(gen._id, gen.imageStorageIds, gen.prompt);
                   }
                 }}
-                className={`flex items-start gap-4 rounded-lg px-4 py-4 transition-colors hover:bg-accent group cursor-pointer ${
-                  selectedId === gen._id ? "bg-accent" : ""
-                }`}
+                className={`flex items-start gap-4 rounded-lg px-4 py-4 transition-colors hover:bg-accent group cursor-pointer ${selectedId === gen._id ? "bg-accent" : ""
+                  }`}
               >
                 {/* Checkbox */}
                 <label
