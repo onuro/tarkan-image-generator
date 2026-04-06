@@ -5,6 +5,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
+import { calculateGenerationCost } from "@/lib/pricing";
 
 interface GenerationHistoryProps {
   selectedId: Id<"generations"> | null;
@@ -162,15 +163,12 @@ export function GenerationHistory({
                       <>
                         {" "}&middot;{" "}
                         {gen.promptTokens.toLocaleString()} tokens
+                      </>
+                    )}
+                    {gen.status === "complete" && (
+                      <>
                         {" "}&middot;{" "}
-                        {(() => {
-                          const inputRate = gen.model === "nano-banana-pro" ? 2.0 : 0.5;
-                          const outputImageRate = gen.model === "nano-banana-pro" ? 0.134 : 0.067;
-                          const inputCost = (gen.promptTokens / 1_000_000) * inputRate;
-                          const outputCost = gen.imageStorageIds.length * outputImageRate;
-                          const total = inputCost + outputCost;
-                          return `$${total.toFixed(3)}`;
-                        })()}
+                        {`$${calculateGenerationCost(gen.model, gen.promptTokens, gen.imageStorageIds.length).toFixed(3)}`}
                       </>
                     )}
                     {" "}&middot;{" "}

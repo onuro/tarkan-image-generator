@@ -55,7 +55,8 @@ async function generateWithGemini(
   ai: GoogleGenAI,
   modelName: string,
   prompt: string,
-  refImages: { base64: string; mimeType: string; label: string }[]
+  refImages: { base64: string; mimeType: string; label: string }[],
+  thinkingBudget?: number
 ): Promise<{
   images: { imageBytes: string; mimeType: string }[];
   promptTokens: number;
@@ -72,12 +73,17 @@ async function generateWithGemini(
     });
   }
 
+  const config: any = {
+    responseModalities: ["TEXT", "IMAGE"],
+  };
+  if (thinkingBudget !== undefined) {
+    config.thinkingConfig = { thinkingBudget };
+  }
+
   const response = await ai.models.generateContent({
     model: modelName,
     contents: [{ role: "user", parts }],
-    config: {
-      responseModalities: ["TEXT", "IMAGE"],
-    },
+    config,
   });
 
   const promptTokens = response.usageMetadata?.promptTokenCount ?? 0;
@@ -107,6 +113,7 @@ export const generate = action({
     referenceImageStorageIds: v.optional(v.array(v.id("_storage"))),
     keepReferenceIds: v.optional(v.array(v.id("_storage"))),
     enhancePrompt: v.optional(v.boolean()),
+    thinkingLevel: v.optional(v.union(v.literal("low"), v.literal("high"))),
     model: v.optional(v.string()),
   },
   returns: v.id("generations"),
@@ -210,11 +217,16 @@ export const generate = action({
         }
 
         for (let i = 0; i < args.numberOfImages; i++) {
+          const thinkingBudget = args.thinkingLevel === "high" ? 8192
+            : args.thinkingLevel === "low" ? 2048
+            : undefined;
+
           const result = await generateWithGemini(
             ai,
             geminiModel,
             fullPrompt,
-            refImages
+            refImages,
+            thinkingBudget
           );
 
           await ctx.runMutation(internal.generations.addTokenUsage, {

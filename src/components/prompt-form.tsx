@@ -30,11 +30,11 @@ const MODELS = [
 
 const ASPECT_RATIOS = [
   { value: "auto", label: "Auto" },
-  { value: "1:1", label: "1:1 (Square)" },
-  { value: "16:9", label: "16:9 (Landscape)" },
-  { value: "9:16", label: "9:16 (Portrait)" },
-  { value: "4:3", label: "4:3 (Standard)" },
-  { value: "3:4", label: "3:4 (Tall)" },
+  { value: "1:1", label: "1:1" },
+  { value: "16:9", label: "16:9" },
+  { value: "9:16", label: "9:16" },
+  { value: "4:3", label: "4:3" },
+  { value: "3:4", label: "3:4" },
 ];
 
 const IMAGE_COUNTS = [1, 2, 3, 4];
@@ -81,12 +81,14 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
   const [numberOfImages, setNumberOfImages] = useState(1);
   const [stylePreset, setStylePreset] = useState("none");
   const [enhancePrompt, setEnhancePrompt] = useState(false);
+  const [thinkingLevel, setThinkingLevel] = useState<"none" | "low" | "high">("none");
   const [inFlightCount, setInFlightCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const [modelOpen, setModelOpen] = useState(false);
   const [aspectOpen, setAspectOpen] = useState(false);
   const [countOpen, setCountOpen] = useState(false);
+  const [thinkingOpen, setThinkingOpen] = useState(false);
 
   const [references, setReferences] = useState<ReferenceItem[]>([]);
   const [refPreviewIndex, setRefPreviewIndex] = useState<number | null>(null);
@@ -305,6 +307,7 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
         referenceImageStorageIds: uploadedStorageIds.length > 0 ? uploadedStorageIds : undefined,
         keepReferenceIds: keepIds.length > 0 ? keepIds : undefined,
         enhancePrompt,
+        thinkingLevel: thinkingLevel !== "none" ? thinkingLevel : undefined,
         model,
       });
       onGenerated(generationId);
@@ -365,9 +368,8 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
                   key={item.label}
                   type="button"
                   onMouseDown={(e) => { e.preventDefault(); insertMention(item.label); }}
-                  className={`w-full flex items-center gap-3 px-3 py-2 text-sm text-left transition-colors cursor-pointer ${
-                    i === mentionIndex ? "bg-accent text-accent-foreground" : "hover:bg-accent/50"
-                  }`}
+                  className={`w-full flex items-center gap-3 px-3 py-2 text-sm text-left transition-colors cursor-pointer ${i === mentionIndex ? "bg-accent text-accent-foreground" : "hover:bg-accent/50"
+                    }`}
                 >
                   <img src={item.previewUrl} alt="" className="size-8 rounded object-cover shrink-0" />
                   <div className="min-w-0">
@@ -447,7 +449,7 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
         <Label>Style</Label>
         <div className="flex flex-wrap gap-2">
           {STYLE_PRESETS.map((style) => (
-            <button key={style.value} type="button" onClick={() => setStylePreset(style.value)}              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors cursor-pointer ${stylePreset === style.value ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}>
+            <button key={style.value} type="button" onClick={() => setStylePreset(style.value)} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors cursor-pointer ${stylePreset === style.value ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}>
               {style.label}
             </button>
           ))}
@@ -460,13 +462,13 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
           <Label className="text-sm">AI Enhance</Label>
           <p className="text-xs text-muted-foreground mt-1.5">Rewrite prompt with Gemini for better results</p>
         </div>
-        <button type="button" role="switch" aria-checked={enhancePrompt} onClick={() => setEnhancePrompt(!enhancePrompt)}          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${enhancePrompt ? "bg-zinc-400" : "bg-zinc-700"}`}>
+        <button type="button" role="switch" aria-checked={enhancePrompt} onClick={() => setEnhancePrompt(!enhancePrompt)} className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${enhancePrompt ? "bg-zinc-400" : "bg-zinc-700"}`}>
           <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm ring-0 transition-transform ${enhancePrompt ? "translate-x-4" : "translate-x-0"}`} />
         </button>
       </div>
 
-      {/* Aspect Ratio + Image Count */}
-      <div className="grid grid-cols-2 gap-4">
+      {/* Aspect Ratio + Image Count + Thinking */}
+      <div className="grid grid-cols-3 gap-4">
         <div>
           <Label className="mb-3 block">Aspect Ratio</Label>
           <DropdownMenu open={aspectOpen} onOpenChange={setAspectOpen}>
@@ -496,6 +498,23 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
                 {IMAGE_COUNTS.map((n) => (
                   <DropdownMenuRadioItem key={n} value={String(n)}>{n} {n === 1 ? "image" : "images"}</DropdownMenuRadioItem>
                 ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        <div>
+          <Label className="mb-3 block">Thinking</Label>
+          <DropdownMenu open={thinkingOpen} onOpenChange={setThinkingOpen}>
+            <DropdownMenuTrigger className="flex items-center justify-between w-full rounded-lg bg-zinc-800/40 px-4 py-2.5 text-sm hover:bg-zinc-800/60 transition-colors">
+              <span>{thinkingLevel === "none" ? "Off" : thinkingLevel === "low" ? "Low" : "High"}</span>
+              <ChevronDown />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuRadioGroup value={thinkingLevel} onValueChange={(v) => { if (v) { setThinkingLevel(v as "none" | "low" | "high"); setThinkingOpen(false); } }}>
+                <DropdownMenuRadioItem value="none">Off</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="low">Low</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="high">High</DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -550,6 +569,11 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
         {hasReference && (
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted text-[11px] text-muted-foreground">
             + {references.length} ref{references.length > 1 ? "s" : ""}
+          </div>
+        )}
+        {thinkingLevel !== "none" && (
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted text-[11px] text-muted-foreground">
+            + Thinking ({thinkingLevel})
           </div>
         )}
       </div>

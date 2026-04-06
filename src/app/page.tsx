@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
+import { calculateGenerationCost } from "@/lib/pricing";
 import { PromptForm } from "@/components/prompt-form";
 import { ImageGallery } from "@/components/image-gallery";
 import { GenerationHistory } from "@/components/generation-history";
@@ -35,6 +36,22 @@ export default function Home() {
     return generations.find((g) => g._id === selectedId) ?? null;
   }, [selectedId, generations]);
 
+  // Cost aggregates
+  const { totalCost, monthCost } = useMemo(() => {
+    if (!generations) return { totalCost: 0, monthCost: 0 };
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    let total = 0;
+    let month = 0;
+    for (const gen of generations) {
+      if (gen.status !== "complete") continue;
+      const cost = calculateGenerationCost(gen.model, gen.promptTokens, gen.imageStorageIds.length);
+      total += cost;
+      if (gen.createdAt >= monthStart) month += cost;
+    }
+    return { totalCost: total, monthCost: month };
+  }, [generations]);
+
   const handleGenerated = (_generationId: Id<"generations">) => {
     // Auto-selection handled by the useEffect above
   };
@@ -52,7 +69,7 @@ export default function Home() {
       {/* Combined Sidebar */}
       <div className="flex shrink-0 rounded-2xl overflow-hidden bg-card/75">
         {/* Sidebar 1: Logo + Create */}
-        <div className="w-[420px] shrink-0 flex flex-col bg-card rounded-r-2xl">
+        <div className="w-[420px] shrink-0 flex flex-col bg-card rounded-r-xl">
           {/* Logo */}
           <div className="flex items-center gap-4 px-7 h-18 border-b border-border/50">
             <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center">
@@ -90,9 +107,14 @@ export default function Home() {
           <div className="flex items-center justify-between px-7 h-18 shrink-0 border-b border-border/50">
             <h2 className="text-sm font-semibold">History</h2>
             {generations && (
-              <span className="text-[11px] text-muted-foreground tabular-nums">
-                {generations.reduce((sum, g) => sum + g.imageStorageIds.length, 0)} images &middot; {generations.length} runs
-              </span>
+              <div className="text-right">
+                <span className="text-[11px] text-muted-foreground tabular-nums">
+                  {generations.reduce((sum, g) => sum + g.imageStorageIds.length, 0)} images &middot; {generations.length} runs
+                </span>
+                <div className="text-[11px] text-muted-foreground tabular-nums">
+                  ${monthCost.toFixed(2)} this month &middot; ${totalCost.toFixed(2)} total
+                </div>
+              </div>
             )}
           </div>
           <div className="flex-1 overflow-auto">
