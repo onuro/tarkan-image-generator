@@ -31,7 +31,7 @@ export function SavedReferences({ onSelect, selectedStorageIds, variant = "link"
         type="button"
         onClick={() => setOpen(true)}
         className={variant === "box"
-          ? "size-20 shrink-0 rounded-lg bg-zinc-800/30 hover:bg-zinc-800/50 transition-colors flex flex-col items-center justify-center gap-2 text-muted-foreground/70 cursor-pointer"
+          ? "size-20 shrink-0 rounded-lg bg-muted hover:bg-accent transition-colors flex flex-col items-center justify-center gap-2 text-muted-foreground/70 cursor-pointer"
           : "text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer underline underline-offset-2"
         }
       >

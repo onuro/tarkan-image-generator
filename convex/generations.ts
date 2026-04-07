@@ -3,35 +3,15 @@ import { v } from "convex/values";
 
 export const list = query({
   args: {},
-  returns: v.array(
-    v.object({
-      _id: v.id("generations"),
-      _creationTime: v.number(),
-      prompt: v.string(),
-      originalPrompt: v.optional(v.string()),
-      stylePreset: v.optional(v.string()),
-      styleSuffix: v.optional(v.string()),
-      wasEnhanced: v.optional(v.boolean()),
-      enhancedPrompt: v.optional(v.string()),
-      aspectRatio: v.string(),
-      numberOfImages: v.number(),
-      imageStorageIds: v.array(v.id("_storage")),
-      model: v.optional(v.string()),
-      promptTokens: v.optional(v.number()),
-      cachedTokens: v.optional(v.number()),
-      status: v.optional(v.union(v.literal("generating"), v.literal("complete"), v.literal("failed"))),
-      error: v.optional(v.string()),
-      createdAt: v.number(),
-    })
-  ),
   handler: async (ctx) => {
     return await ctx.db
       .query("generations")
       .withIndex("by_creation")
       .order("desc")
-      .take(50);
+      .collect();
   },
 });
+
 
 export const getImageUrls = query({
   args: { storageIds: v.array(v.id("_storage")) },

@@ -18,9 +18,12 @@ interface ImageGalleryProps {
   enhancedPrompt?: string;
   status?: string;
   error?: string;
+  aspectRatio?: string;
+  promptTokens?: number | null;
+  thinkingLevel?: string;
 }
 
-export function ImageGallery({ storageIds, numberOfImages, prompt, model, originalPrompt, stylePreset, styleSuffix, wasEnhanced, enhancedPrompt, status, error }: ImageGalleryProps) {
+export function ImageGallery({ storageIds, numberOfImages, prompt, model, originalPrompt, stylePreset, styleSuffix, wasEnhanced, enhancedPrompt, status, error, aspectRatio, promptTokens, thinkingLevel }: ImageGalleryProps) {
   const urls = useQuery(api.generations.getImageUrls, {
     storageIds: storageIds.length > 0 ? storageIds : [],
   });
@@ -133,6 +136,10 @@ export function ImageGallery({ storageIds, numberOfImages, prompt, model, origin
         styleSuffix={styleSuffix}
         wasEnhanced={wasEnhanced}
         enhancedPrompt={enhancedPrompt}
+        aspectRatio={aspectRatio}
+        promptTokens={promptTokens}
+        imageCount={numberOfImages}
+        thinkingLevel={thinkingLevel}
         onClose={() => setPreviewIndex(null)}
         onNavigate={setPreviewIndex}
       />

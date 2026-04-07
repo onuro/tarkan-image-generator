@@ -26,6 +26,7 @@ const MODELS = [
   { value: "imagen-4", label: "Imagen 4", description: "Best for text-to-image" },
   { value: "nano-banana-pro", label: "Nano Banana Pro", description: "Best quality with references" },
   { value: "nano-banana-2", label: "Nano Banana 2", description: "Fast, high-volume" },
+  { value: "nano-banana-og", label: "Nano Banana OG", description: "Cheapest, stable/GA" },
 ];
 
 const ASPECT_RATIOS = [
@@ -106,9 +107,11 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
   const saveReference = useMutation(api.referenceImages.save);
   const generations = useQuery(api.generations.list);
 
-  const quotaExceeded = generations?.some(
-    (g) => g.status === "failed" && g.error?.includes("Daily API quota exceeded")
-  ) ?? false;
+  const latestQuotaError = generations?.[0]?.status === "failed" &&
+    (generations[0].error?.includes("Daily API quota exceeded") ||
+     generations[0].error?.includes("Vertex AI quota exceeded"));
+  const [quotaDismissed, setQuotaDismissed] = useState(false);
+  const quotaExceeded = latestQuotaError && !quotaDismissed;
 
   const hasReference = references.length > 0;
   const currentStyle = STYLE_PRESETS.find((s) => s.value === stylePreset);
@@ -319,12 +322,13 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-9">
+    <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+      <div className="flex-1 overflow-auto p-8 space-y-9">
       {/* Model */}
       <div>
         <Label className="mb-3 block">Model</Label>
         <DropdownMenu open={modelOpen} onOpenChange={setModelOpen}>
-          <DropdownMenuTrigger className="flex items-center justify-between w-full rounded-lg bg-zinc-800/40 px-4 py-2.5 text-sm hover:bg-zinc-800/60 transition-colors">
+          <DropdownMenuTrigger className="flex items-center justify-between w-full rounded-lg bg-muted px-4 py-2.5 text-sm hover:bg-accent transition-colors">
             <span>{currentModel?.label}</span>
             <ChevronDown />
           </DropdownMenuTrigger>
@@ -359,7 +363,7 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
             onKeyDown={handleTextareaKeyDown}
             onBlur={() => { setTimeout(() => setMentionOpen(false), 150); }}
             rows={4}
-            className="resize-none border-transparent bg-zinc-800/40"
+            className="resize-none border-transparent bg-muted px-5 py-4 text-[15px] leading-relaxed"
           />
           {mentionOpen && filteredMentions.length > 0 && (
             <div className="absolute z-50 left-2 bottom-full mb-1 w-56 rounded-lg border border-border bg-popover shadow-lg overflow-hidden">
@@ -421,7 +425,7 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="size-20 shrink-0 rounded-lg bg-zinc-800/30 hover:bg-zinc-800/50 transition-colors flex flex-col items-center justify-center gap-2 text-muted-foreground/70 cursor-pointer"
+              className="size-20 shrink-0 rounded-lg bg-muted hover:bg-accent transition-colors flex flex-col items-center justify-center gap-2 text-muted-foreground/70 cursor-pointer"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
               <span className="text-[10px]">Add</span>
@@ -472,7 +476,7 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
         <div>
           <Label className="mb-3 block">Aspect Ratio</Label>
           <DropdownMenu open={aspectOpen} onOpenChange={setAspectOpen}>
-            <DropdownMenuTrigger className="flex items-center justify-between w-full rounded-lg bg-zinc-800/40 px-4 py-2.5 text-sm hover:bg-zinc-800/60 transition-colors">
+            <DropdownMenuTrigger className="flex items-center justify-between w-full rounded-lg bg-muted px-4 py-2.5 text-sm hover:bg-accent transition-colors">
               <span>{ASPECT_RATIOS.find((r) => r.value === aspectRatio)?.label}</span>
               <ChevronDown />
             </DropdownMenuTrigger>
@@ -489,7 +493,7 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
         <div>
           <Label className="mb-3 block">Images</Label>
           <DropdownMenu open={countOpen} onOpenChange={setCountOpen}>
-            <DropdownMenuTrigger className="flex items-center justify-between w-full rounded-lg bg-zinc-800/40 px-4 py-2.5 text-sm hover:bg-zinc-800/60 transition-colors">
+            <DropdownMenuTrigger className="flex items-center justify-between w-full rounded-lg bg-muted px-4 py-2.5 text-sm hover:bg-accent transition-colors">
               <span>{numberOfImages} {numberOfImages === 1 ? "image" : "images"}</span>
               <ChevronDown />
             </DropdownMenuTrigger>
@@ -506,7 +510,7 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
         <div>
           <Label className="mb-3 block">Thinking</Label>
           <DropdownMenu open={thinkingOpen} onOpenChange={setThinkingOpen}>
-            <DropdownMenuTrigger className="flex items-center justify-between w-full rounded-lg bg-zinc-800/40 px-4 py-2.5 text-sm hover:bg-zinc-800/60 transition-colors">
+            <DropdownMenuTrigger className="flex items-center justify-between w-full rounded-lg bg-muted px-4 py-2.5 text-sm hover:bg-accent transition-colors">
               <span>{thinkingLevel === "none" ? "Off" : thinkingLevel === "low" ? "Low" : "High"}</span>
               <ChevronDown />
             </DropdownMenuTrigger>
@@ -521,61 +525,72 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
         </div>
       </div>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      </div>
 
-      {quotaExceeded && (
-        <div className="flex items-start gap-3 rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-destructive shrink-0 mt-0.5">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-          <div>
-            <p className="text-sm font-medium text-destructive">Daily limit reached</p>
-            <p className="text-xs text-destructive/70 mt-0.5">API quota exceeded (250 requests). Try again tomorrow.</p>
+      {/* Sticky bottom action area */}
+      <div className="shrink-0 px-8 py-5 border-t border-border/50 space-y-3">
+        {error && <p className="text-sm text-destructive">{error}</p>}
+
+        {quotaExceeded && (
+          <div className="flex items-start gap-3 rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-destructive shrink-0 mt-0.5">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-destructive">Daily limit reached</p>
+              <p className="text-xs text-destructive/70 mt-0.5">API quota exceeded (250 requests). Try again tomorrow.</p>
+            </div>
+            <button onClick={() => setQuotaDismissed(true)} className="text-destructive/50 hover:text-destructive shrink-0 mt-0.5">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
           </div>
+        )}
+
+        <Button type="submit" className="w-full h-10 text-base rounded-full" disabled={!prompt.trim() || inFlightCount >= 3 || quotaExceeded}>
+          {quotaExceeded ? "Daily limit reached" : inFlightCount >= 3 ? "Limit reached (3/3)" : hasReference ? "Edit with Reference" : "Generate"}
+        </Button>
+
+        {inFlightCount > 0 && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            {inFlightCount} generation{inFlightCount > 1 ? "s" : ""} in progress...
+          </div>
+        )}
+
+        {/* Model indicator */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted text-[11px] text-muted-foreground">
+            {currentModel?.label ?? model}
+          </div>
+          {stylePreset !== "none" && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted text-[11px] text-muted-foreground">
+              + {currentStyle?.label}
+            </div>
+          )}
+          {enhancePrompt && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted text-[11px] text-muted-foreground">
+              + AI Enhance
+            </div>
+          )}
+          {hasReference && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted text-[11px] text-muted-foreground">
+              + {references.length} ref{references.length > 1 ? "s" : ""}
+            </div>
+          )}
+          {thinkingLevel !== "none" && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted text-[11px] text-muted-foreground">
+              + Thinking ({thinkingLevel})
+            </div>
+          )}
         </div>
-      )}
-
-      <Button type="submit" className="w-full h-10 text-base rounded-full" disabled={!prompt.trim() || inFlightCount >= 3 || quotaExceeded}>
-        {quotaExceeded ? "Daily limit reached" : inFlightCount >= 3 ? "Limit reached (3/3)" : hasReference ? "Edit with Reference" : "Generate"}
-      </Button>
-
-      {inFlightCount > 0 && (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-          </svg>
-          {inFlightCount} generation{inFlightCount > 1 ? "s" : ""} in progress...
-        </div>
-      )}
-
-      {/* Model indicator */}
-      <div className="flex items-center gap-2 pt-1 flex-wrap">
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted text-[11px] text-muted-foreground">
-          {currentModel?.label ?? model}
-        </div>
-        {stylePreset !== "none" && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted text-[11px] text-muted-foreground">
-            + {currentStyle?.label}
-          </div>
-        )}
-        {enhancePrompt && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted text-[11px] text-muted-foreground">
-            + AI Enhance
-          </div>
-        )}
-        {hasReference && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted text-[11px] text-muted-foreground">
-            + {references.length} ref{references.length > 1 ? "s" : ""}
-          </div>
-        )}
-        {thinkingLevel !== "none" && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted text-[11px] text-muted-foreground">
-            + Thinking ({thinkingLevel})
-          </div>
-        )}
       </div>
 
       {/* Reference Image Preview Modal */}

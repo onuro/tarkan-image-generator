@@ -10,7 +10,48 @@ const GEMINI_MODELS: Record<string, string> = {
   "imagen-4": "imagen-4.0-generate-001",
   "nano-banana-pro": "gemini-3-pro-image-preview",
   "nano-banana-2": "gemini-3.1-flash-image-preview",
+  "nano-banana-og": "gemini-2.5-flash-image",
 };
+
+function createGenAIClient(): GoogleGenAI {
+  const gcpProject = process.env.GOOGLE_CLOUD_PROJECT;
+  const gcpCredentials = process.env.GOOGLE_CLOUD_CREDENTIALS;
+
+  if (gcpProject && gcpCredentials) {
+    return new GoogleGenAI({
+      vertexai: true,
+      project: gcpProject,
+      location: process.env.GOOGLE_CLOUD_LOCATION || "us-central1",
+      googleAuthOptions: {
+        credentials: JSON.parse(gcpCredentials),
+      },
+    });
+  }
+
+  const apiKey = process.env.GOOGLE_AI_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      "Set either GOOGLE_CLOUD_PROJECT + GOOGLE_CLOUD_CREDENTIALS (Vertex AI) or GOOGLE_AI_API_KEY (AI Studio). " +
+        "Add them in the Convex dashboard under Settings > Environment Variables."
+    );
+  }
+  return new GoogleGenAI({ apiKey });
+}
+
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (e: any) {
+      const msg = e?.message || String(e);
+      const isRateLimit = msg.includes('"code":429') || msg.includes("RESOURCE_EXHAUSTED");
+      if (!isRateLimit || attempt === maxRetries) throw e;
+      const delay = Math.pow(2, attempt) * 5000; // 5s, 10s, 20s
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  throw new Error("Unreachable");
+}
 
 async function enhancePrompt(
   ai: GoogleGenAI,
@@ -24,7 +65,7 @@ async function enhancePrompt(
 
   const systemPrompt = `Append exactly 5-10 words to the end of this image generation prompt. Your addition MUST be directly relevant to the specific subject, materials, and scene described in the prompt. If the prompt mentions asphalt, add something about asphalt (like wet surface reflections). If it mentions a forest, add something about the forest. NEVER add elements that aren't already implied by the scene (no sky if the scene is a close-up, no ocean if the scene is indoors). Do NOT change any of the original words. Output the full prompt with your addition at the end. No quotes or explanation.`;
 
-  const response = await ai.models.generateContent({
+  const response = await withRetry(() => ai.models.generateContent({
     model: "gemini-2.5-flash",
     contents: [
       {
@@ -35,7 +76,7 @@ async function enhancePrompt(
     config: {
       maxOutputTokens: 1000,
     },
-  });
+  }));
 
   const enhanced = response.candidates?.[0]?.content?.parts
     ?.filter((p) => p.text && !p.thought)
@@ -76,15 +117,16 @@ async function generateWithGemini(
   const config: any = {
     responseModalities: ["TEXT", "IMAGE"],
   };
-  if (thinkingBudget !== undefined) {
+  const supportsThinking = !modelName.includes("2.5-flash-image");
+  if (thinkingBudget !== undefined && supportsThinking) {
     config.thinkingConfig = { thinkingBudget };
   }
 
-  const response = await ai.models.generateContent({
+  const response = await withRetry(() => ai.models.generateContent({
     model: modelName,
     contents: [{ role: "user", parts }],
     config,
-  });
+  }));
 
   const promptTokens = response.usageMetadata?.promptTokenCount ?? 0;
 
@@ -118,14 +160,7 @@ export const generate = action({
   },
   returns: v.id("generations"),
   handler: async (ctx, args): Promise<Id<"generations">> => {
-    const apiKey = process.env.GOOGLE_AI_API_KEY;
-    if (!apiKey) {
-      throw new Error(
-        "GOOGLE_AI_API_KEY is not set. Add it in the Convex dashboard under Settings > Environment Variables."
-      );
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = createGenAIClient();
     const selectedModel = args.model || "imagen-4";
     const modelName = GEMINI_MODELS[selectedModel] || GEMINI_MODELS["imagen-4"];
     const isImagen = selectedModel === "imagen-4";
@@ -183,14 +218,14 @@ export const generate = action({
       if (isImagen && refImages.length === 0) {
         const aspectRatio = args.aspectRatio === "auto" ? "1:1" : args.aspectRatio;
 
-        const response = await ai.models.generateImages({
+        const response = await withRetry(() => ai.models.generateImages({
           model: modelName,
           prompt: finalPrompt,
           config: {
             numberOfImages: args.numberOfImages,
             aspectRatio,
           },
-        });
+        }));
 
         if (response.generatedImages) {
           for (const generatedImage of response.generatedImages) {
@@ -251,9 +286,12 @@ export const generate = action({
       let errorMsg: string;
 
       if (raw.includes('"code":429') || raw.includes("RESOURCE_EXHAUSTED")) {
+        const isVertex = !!process.env.GOOGLE_CLOUD_PROJECT;
         const retryMatch = raw.match(/Please retry in (\d+h\d+m)/);
-        const retryInfo = retryMatch ? ` Try again in ~${retryMatch[1]}.` : " Try again tomorrow.";
-        errorMsg = `Daily API quota exceeded (250 requests).${retryInfo}`;
+        const retryInfo = retryMatch ? ` Try again in ~${retryMatch[1]}.` : "";
+        errorMsg = isVertex
+          ? `Vertex AI quota exceeded.${retryInfo} Check your GCP quota settings.`
+          : `Daily API quota exceeded (250 requests).${retryInfo || " Try again tomorrow."}`;
       } else {
         errorMsg = raw.slice(0, 500);
       }

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { calculateGenerationCost } from "@/lib/pricing";
 
 interface ImagePreviewDialogProps {
   urls: string[];
@@ -14,6 +15,10 @@ interface ImagePreviewDialogProps {
   styleSuffix?: string;
   wasEnhanced?: boolean;
   enhancedPrompt?: string;
+  aspectRatio?: string;
+  promptTokens?: number | null;
+  imageCount?: number;
+  thinkingLevel?: string;
   onClose: () => void;
   onNavigate: (index: number) => void;
 }
@@ -28,9 +33,20 @@ export function ImagePreviewDialog({
   styleSuffix,
   wasEnhanced,
   enhancedPrompt,
+  aspectRatio,
+  promptTokens,
+  imageCount,
+  thinkingLevel,
   onClose,
   onNavigate,
 }: ImagePreviewDialogProps) {
+  const [copied, setCopied] = useState<"original" | "final" | false>(false);
+
+  const copyText = (text: string, which: "original" | "final") => {
+    navigator.clipboard.writeText(text);
+    setCopied(which);
+    setTimeout(() => setCopied(false), 2000);
+  };
   const isOpen = currentIndex !== null;
   const url = currentIndex !== null ? urls[currentIndex] : null;
   const canPrev = currentIndex !== null && currentIndex > 0;
@@ -92,7 +108,7 @@ export function ImagePreviewDialog({
 
         {hasMultiple && (
           <button onClick={goNext} disabled={!canNext}
-            className={`absolute right-[340px] z-10 h-10 w-10 rounded-full bg-black/50 text-white flex items-center justify-center transition-opacity ${canNext ? "hover:bg-black/70 cursor-pointer" : "opacity-30 cursor-default"}`}>
+            className={`absolute right-4 z-10 h-10 w-10 rounded-full bg-black/50 text-white flex items-center justify-center transition-opacity ${canNext ? "hover:bg-black/70 cursor-pointer" : "opacity-30 cursor-default"}`}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
           </button>
         )}
@@ -114,7 +130,15 @@ export function ImagePreviewDialog({
           {hasBreakdown ? (
             <>
               <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Your Prompt</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Your Prompt</p>
+                  <button
+                    onClick={() => copyText(displayOriginal, "original")}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    {copied === "original" ? "Copied!" : "Copy"}
+                  </button>
+                </div>
                 <p className="text-sm leading-relaxed">{displayOriginal}</p>
               </div>
 
@@ -157,16 +181,71 @@ export function ImagePreviewDialog({
             </div>
           )}
 
+          {/* Copy Prompt */}
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(prompt);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }}
+            className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect width="14" height="14" x="8" y="8" rx="2" />
+              <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+            </svg>
+            {copied ? "Copied!" : "Copy final prompt"}
+          </button>
+
           {/* Settings */}
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Settings</p>
-            <div className="flex flex-wrap gap-2">
-              <span className="px-2.5 py-1 rounded-full bg-muted text-xs text-muted-foreground">PNG</span>
+          <div className="space-y-3">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Details</p>
+            <div className="space-y-2">
               {model && (
-                <span className="px-2.5 py-1 rounded-full bg-muted text-xs text-muted-foreground">{model}</span>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Model</span>
+                  <span>{model}</span>
+                </div>
               )}
+              {aspectRatio && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Aspect Ratio</span>
+                  <span>{aspectRatio}</span>
+                </div>
+              )}
+              {thinkingLevel && thinkingLevel !== "none" && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Thinking</span>
+                  <span className="capitalize">{thinkingLevel}</span>
+                </div>
+              )}
+              {promptTokens != null && promptTokens > 0 && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Tokens</span>
+                  <span>{promptTokens.toLocaleString()}</span>
+                </div>
+              )}
+              {imageCount != null && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Images</span>
+                  <span>{imageCount}</span>
+                </div>
+              )}
+              {model && imageCount != null && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Cost</span>
+                  <span>${calculateGenerationCost(model, promptTokens ?? undefined, imageCount).toFixed(3)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Format</span>
+                <span>PNG</span>
+              </div>
               {hasMultiple && (
-                <span className="px-2.5 py-1 rounded-full bg-muted text-xs text-muted-foreground">{currentIndex! + 1} / {urls.length}</span>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Viewing</span>
+                  <span>{currentIndex! + 1} / {urls.length}</span>
+                </div>
               )}
             </div>
           </div>

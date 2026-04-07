@@ -6,6 +6,45 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { calculateGenerationCost } from "@/lib/pricing";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+
+const PAGE_SIZE = 50;
+
+function HistoryThumbnails({ storageIds }: { storageIds: Id<"_storage">[] }) {
+  const previewIds = storageIds.slice(0, 4);
+  const urls = useQuery(api.generations.getImageUrls, {
+    storageIds: previewIds,
+  });
+  const validUrls = urls?.filter((u): u is string => u !== null) ?? [];
+  if (validUrls.length === 0) return null;
+
+  const count = validUrls.length;
+  const gridClass =
+    count === 1
+      ? "grid-cols-1"
+      : "grid-cols-2";
+
+  return (
+    <div className={`grid ${gridClass} gap-0.5 w-16 h-16 shrink-0 rounded-md overflow-hidden`}>
+      {validUrls.map((url, i) => (
+        <img
+          key={i}
+          src={url}
+          alt=""
+          className="w-full h-full object-cover"
+        />
+      ))}
+    </div>
+  );
+}
 
 interface GenerationHistoryProps {
   selectedId: Id<"generations"> | null;
@@ -24,6 +63,7 @@ export function GenerationHistory({
   const removeGeneration = useMutation(api.generations.remove);
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const toggleChecked = (id: string) => {
     setCheckedIds((prev) => {
@@ -38,11 +78,11 @@ export function GenerationHistory({
   };
 
   const selectAll = () => {
-    if (!generations) return;
-    if (checkedIds.size === generations.length) {
+    if (!pageItems) return;
+    if (checkedIds.size === pageItems.length) {
       setCheckedIds(new Set());
     } else {
-      setCheckedIds(new Set(generations.map((g) => g._id)));
+      setCheckedIds(new Set(pageItems.map((g) => g._id)));
     }
   };
 
@@ -79,8 +119,30 @@ export function GenerationHistory({
     );
   }
 
+  const totalPages = Math.ceil(generations.length / PAGE_SIZE);
+  const safePage = Math.min(currentPage, totalPages);
+  const startIdx = (safePage - 1) * PAGE_SIZE;
+  const pageItems = generations.slice(startIdx, startIdx + PAGE_SIZE);
+
   const hasChecked = checkedIds.size > 0;
-  const allChecked = checkedIds.size === generations.length;
+  const allChecked = pageItems.length > 0 && checkedIds.size === pageItems.length;
+
+  // Build page numbers to show
+  const getPageNumbers = () => {
+    const pages: (number | "ellipsis")[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (safePage > 4) pages.push("ellipsis");
+      const start = Math.max(2, safePage - 2);
+      const end = Math.min(totalPages - 1, safePage + 2);
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (safePage < totalPages - 3) pages.push("ellipsis");
+      pages.push(totalPages);
+    }
+    return pages;
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -109,9 +171,9 @@ export function GenerationHistory({
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-auto px-4 pb-8 pt-2">
+      <div className="flex-1 overflow-auto px-4 pb-4 pt-2">
         <div className="space-y-3">
-          {generations.map((gen, i) => (
+          {pageItems.map((gen) => (
             <div key={gen._id}>
               <div
                 role="button"
@@ -130,7 +192,7 @@ export function GenerationHistory({
               >
                 {/* Checkbox */}
                 <label
-                  className="flex items-start shrink-0 pt-0.5 cursor-pointer"
+                  className={`flex items-start shrink-0 pt-0.5 cursor-pointer transition-opacity ${checkedIds.has(gen._id) ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <input
@@ -141,45 +203,88 @@ export function GenerationHistory({
                   />
                 </label>
 
+                {/* Thumbnails */}
+                {gen.status === "complete" && gen.imageStorageIds.length > 0 && (
+                  <HistoryThumbnails storageIds={gen.imageStorageIds} />
+                )}
+
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{gen.prompt}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {gen.status === "failed" ? (
-                      <span className="text-destructive">
-                        {gen.error || "Failed"}
-                      </span>
-                    ) : gen.status === "generating" ? (
-                      <span className="text-yellow-500">Generating...</span>
-                    ) : (
-                      <>
+                  {gen.status === "failed" ? (
+                    <p className="text-xs text-destructive mt-1 line-clamp-2">
+                      {gen.error || "Failed"}
+                    </p>
+                  ) : gen.status === "generating" ? (
+                    <p className="text-xs text-yellow-500 mt-1">Generating...</p>
+                  ) : (
+                    <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                      <p>
                         {gen.imageStorageIds.length}{" "}
                         {gen.imageStorageIds.length === 1 ? "image" : "images"}
-                      </>
-                    )}
-                    {" "}&middot; {gen.aspectRatio}
-                    {gen.model && <> &middot; {gen.model}</>}
-                    {gen.promptTokens != null && (
-                      <>
-                        {" "}&middot;{" "}
-                        {gen.promptTokens.toLocaleString()} tokens
-                      </>
-                    )}
-                    {gen.status === "complete" && (
-                      <>
-                        {" "}&middot;{" "}
+                        {" "}&middot; {gen.aspectRatio}
+                        {gen.model && <> &middot; {gen.model}</>}
+                      </p>
+                      <p>
+                        {gen.promptTokens != null && (
+                          <>{gen.promptTokens.toLocaleString()} tokens &middot; </>
+                        )}
                         {`$${calculateGenerationCost(gen.model, gen.promptTokens, gen.imageStorageIds.length).toFixed(3)}`}
-                      </>
-                    )}
-                    {" "}&middot;{" "}
-                    {new Date(gen.createdAt).toLocaleString()}
-                  </p>
+                        {" "}&middot;{" "}
+                        {new Date(gen.createdAt).toLocaleDateString()},{" "}
+                        {new Date(gen.createdAt).toLocaleTimeString()}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           ))}
         </div>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="shrink-0 border-t border-border/50 px-4 py-3">
+          <Pagination>
+            <PaginationContent className="gap-1">
+              <PaginationItem>
+                <PaginationPrevious
+                  text=""
+                  className={safePage <= 1 ? "pointer-events-none opacity-40" : ""}
+                  onClick={(e) => { e.preventDefault(); setCurrentPage(Math.max(1, safePage - 1)); }}
+                  href="#"
+                />
+              </PaginationItem>
+              {getPageNumbers().map((p, i) =>
+                p === "ellipsis" ? (
+                  <PaginationItem key={`e${i}`}>
+                    <PaginationEllipsis className="text-muted-foreground" />
+                  </PaginationItem>
+                ) : (
+                  <PaginationItem key={p}>
+                    <PaginationLink
+                      isActive={p === safePage}
+                      onClick={(e) => { e.preventDefault(); setCurrentPage(p); }}
+                      href="#"
+                    >
+                      {p}
+                    </PaginationLink>
+                  </PaginationItem>
+                )
+              )}
+              <PaginationItem>
+                <PaginationNext
+                  text=""
+                  className={safePage >= totalPages ? "pointer-events-none opacity-40" : ""}
+                  onClick={(e) => { e.preventDefault(); setCurrentPage(Math.min(totalPages, safePage + 1)); }}
+                  href="#"
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
     </div>
   );
 }

@@ -36,20 +36,22 @@ export default function Home() {
     return generations.find((g) => g._id === selectedId) ?? null;
   }, [selectedId, generations]);
 
-  // Cost aggregates
-  const { totalCost, monthCost } = useMemo(() => {
-    if (!generations) return { totalCost: 0, monthCost: 0 };
+  // Cost aggregates (from all generations)
+  const { totalCost, monthCost, totalImages, totalRuns } = useMemo(() => {
+    if (!generations) return { totalCost: 0, monthCost: 0, totalImages: 0, totalRuns: 0 };
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
     let total = 0;
     let month = 0;
+    let images = 0;
     for (const gen of generations) {
+      images += gen.imageStorageIds.length;
       if (gen.status !== "complete") continue;
       const cost = calculateGenerationCost(gen.model, gen.promptTokens, gen.imageStorageIds.length);
       total += cost;
       if (gen.createdAt >= monthStart) month += cost;
     }
-    return { totalCost: total, monthCost: month };
+    return { totalCost: total, monthCost: month, totalImages: images, totalRuns: generations.length };
   }, [generations]);
 
   const handleGenerated = (_generationId: Id<"generations">) => {
@@ -97,7 +99,7 @@ export default function Home() {
           </div>
 
           {/* Create Form */}
-          <div className="flex-1 overflow-auto p-8">
+          <div className="flex-1 flex flex-col overflow-hidden">
             <PromptForm onGenerated={handleGenerated} />
           </div>
         </div>
@@ -109,7 +111,7 @@ export default function Home() {
             {generations && (
               <div className="text-right">
                 <span className="text-[11px] text-muted-foreground tabular-nums">
-                  {generations.reduce((sum, g) => sum + g.imageStorageIds.length, 0)} images &middot; {generations.length} runs
+                  {totalImages} images &middot; {totalRuns} runs
                 </span>
                 <div className="text-[11px] text-muted-foreground tabular-nums">
                   ${monthCost.toFixed(2)} this month &middot; ${totalCost.toFixed(2)} total
@@ -155,6 +157,8 @@ export default function Home() {
               enhancedPrompt={selectedGeneration.enhancedPrompt}
               status={selectedGeneration.status}
               error={selectedGeneration.error}
+              aspectRatio={selectedGeneration.aspectRatio}
+              promptTokens={selectedGeneration.promptTokens}
             />
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">

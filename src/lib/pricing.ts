@@ -20,6 +20,11 @@ export const MODEL_PRICING: Record<
     inputPerMillion: 0,
     outputPerImage: 0.067, // 1K resolution
   },
+  "nano-banana-og": {
+    // gemini-2.5-flash-image (stable/GA)
+    inputPerMillion: 0.3,
+    outputPerImage: 0.039, // 1K resolution
+  },
 };
 
 const DEFAULT_PRICING = MODEL_PRICING["nano-banana-2"];
