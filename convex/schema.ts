@@ -28,6 +28,7 @@ export default defineSchema({
     promptTokens: v.optional(v.number()),
     cachedTokens: v.optional(v.number()),
     status: v.optional(v.union(v.literal("generating"), v.literal("complete"), v.literal("failed"))),
+    statusMessage: v.optional(v.string()),
     error: v.optional(v.string()),
     createdAt: v.number(),
   }).index("by_creation", ["createdAt"]),

@@ -280,7 +280,16 @@ export const generate = action({
           }
         }
       }
-      await ctx.runMutation(internal.generations.markComplete, { generationId });
+      // Check if any images were actually generated
+      const finalGen = await ctx.runQuery(internal.generations.get, { generationId });
+      if (!finalGen || finalGen.imageStorageIds.length === 0) {
+        await ctx.runMutation(internal.generations.markFailed, {
+          generationId,
+          error: "No images were returned. The model may have filtered the content or failed silently. Try rephrasing your prompt.",
+        });
+      } else {
+        await ctx.runMutation(internal.generations.markComplete, { generationId });
+      }
     } catch (e: any) {
       const raw = e?.message || String(e);
       let errorMsg: string;

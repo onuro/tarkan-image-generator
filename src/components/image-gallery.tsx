@@ -31,7 +31,8 @@ export function ImageGallery({ storageIds, numberOfImages, prompt, model, origin
 
   const validUrls = urls?.filter((url): url is string => url !== null) ?? [];
   const isFailed = status === "failed";
-  const remainingSkeletons = isFailed ? 0 : numberOfImages - storageIds.length;
+  const isGenerating = status === "generating";
+  const remainingSkeletons = isGenerating ? numberOfImages - storageIds.length : 0;
   const isStillGenerating = remainingSkeletons > 0;
   const cols = numberOfImages === 1 ? "grid-cols-1" : "grid-cols-2";
 

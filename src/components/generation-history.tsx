@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { calculateGenerationCost } from "@/lib/pricing";
 import {
@@ -18,28 +19,45 @@ import {
 
 const PAGE_SIZE = 50;
 
-function HistoryThumbnails({ storageIds }: { storageIds: Id<"_storage">[] }) {
+function HistoryThumbnails({
+  storageIds,
+  totalExpected,
+  isGenerating,
+}: {
+  storageIds: Id<"_storage">[];
+  totalExpected: number;
+  isGenerating: boolean;
+}) {
   const previewIds = storageIds.slice(0, 4);
   const urls = useQuery(api.generations.getImageUrls, {
     storageIds: previewIds,
   });
   const validUrls = urls?.filter((u): u is string => u !== null) ?? [];
-  if (validUrls.length === 0) return null;
 
-  const count = validUrls.length;
-  const gridClass =
-    count === 1
-      ? "grid-cols-1"
-      : "grid-cols-2";
+  const previewTotal = Math.min(totalExpected, 4);
+  const pendingCount = isGenerating ? Math.max(0, previewTotal - validUrls.length) : 0;
+
+  if (validUrls.length === 0 && pendingCount === 0) return null;
+
+  const gridClass = previewTotal === 1 ? "grid-cols-1" : "grid-cols-2";
 
   return (
     <div className={`grid ${gridClass} gap-0.5 w-16 h-16 shrink-0 rounded-md overflow-hidden`}>
       {validUrls.map((url, i) => (
-        <img
+        <Image
           key={i}
           src={url}
           alt=""
+          width={32}
+          height={32}
           className="w-full h-full object-cover"
+          unoptimized
+        />
+      ))}
+      {Array.from({ length: pendingCount }, (_, i) => (
+        <div
+          key={`pending-${i}`}
+          className="w-full h-full bg-muted animate-pulse"
         />
       ))}
     </div>
@@ -192,7 +210,7 @@ export function GenerationHistory({
               >
                 {/* Checkbox */}
                 <label
-                  className={`flex items-start shrink-0 pt-0.5 cursor-pointer transition-opacity ${checkedIds.has(gen._id) ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                  className={`flex items-start shrink-0 pt-0.5 cursor-pointer transition-opacity ${checkedIds.has(gen._id) ? "opacity-100" : "opacity-30 group-hover:opacity-100"}`}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <input
@@ -204,8 +222,12 @@ export function GenerationHistory({
                 </label>
 
                 {/* Thumbnails */}
-                {gen.status === "complete" && gen.imageStorageIds.length > 0 && (
-                  <HistoryThumbnails storageIds={gen.imageStorageIds} />
+                {(gen.imageStorageIds.length > 0 || gen.status === "generating") && (
+                  <HistoryThumbnails
+                    storageIds={gen.imageStorageIds}
+                    totalExpected={gen.numberOfImages}
+                    isGenerating={gen.status === "generating"}
+                  />
                 )}
 
                 {/* Content */}
