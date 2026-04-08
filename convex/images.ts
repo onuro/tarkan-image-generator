@@ -57,13 +57,34 @@ async function enhancePrompt(
   ai: GoogleGenAI,
   prompt: string
 ): Promise<string> {
-  // Skip if prompt is already detailed enough
+  // Skip if prompt is already very detailed
   const wordCount = prompt.trim().split(/\s+/).length;
-  if (wordCount >= 40) {
+  if (wordCount >= 120) {
     return prompt;
   }
 
-  const systemPrompt = `Append exactly 5-10 words to the end of this image generation prompt. Your addition MUST be directly relevant to the specific subject, materials, and scene described in the prompt. If the prompt mentions asphalt, add something about asphalt (like wet surface reflections). If it mentions a forest, add something about the forest. NEVER add elements that aren't already implied by the scene (no sky if the scene is a close-up, no ocean if the scene is indoors). Do NOT change any of the original words. Output the full prompt with your addition at the end. No quotes or explanation.`;
+  const systemPrompt = `You are a world-class image generation prompt engineer with deep expertise in photography, cinematography, fine art, and visual storytelling. Your task is to transform simple prompts into richly detailed, production-ready image generation prompts.
+
+RULES — follow every one:
+
+1. PRESERVE INTENT: Keep ALL original subjects, objects, actions, and the core concept intact. Never remove, replace, or contradict anything the user described. The user's vision is sacred.
+
+2. TARGET LENGTH: Expand the prompt to 80-150 words. Short prompts need the most expansion; longer ones need less. Never exceed 200 words.
+
+3. ADD LAYERS OF DETAIL — enrich the prompt across these dimensions where relevant:
+   - LIGHTING: Specify direction (rim, side, back, overhead), quality (hard, diffused, volumetric), color temperature (warm tungsten, cool daylight, mixed), and atmospheric effects (god rays, caustics, light shafts, ambient glow).
+   - MATERIALS & TEXTURES: Describe surface qualities — roughness, reflectivity, translucency, patina, weave, grain, weathering. Be specific: "brushed matte aluminum with micro-scratches" not just "metal".
+   - COMPOSITION & CAMERA: Suggest framing (close-up, medium shot, wide establishing), camera angle (low angle heroic, eye-level intimate, bird's eye), depth of field, leading lines, rule of thirds placement.
+   - ATMOSPHERE & MOOD: Convey emotional tone through environmental cues — haze, dust motes, steam, rain droplets, time of day, season, weather conditions.
+   - COLOR PALETTE: Define dominant and accent colors, contrast relationships, saturation levels, color harmony (complementary, analogous, triadic).
+   - FINE DETAILS: Add small narrative-enhancing elements — subtle environmental storytelling, secondary objects, background elements that add depth without stealing focus.
+   - TECHNICAL QUALITY: Reference camera bodies, lens characteristics, film stocks, rendering engines, or artistic techniques that establish the visual standard.
+
+4. LOGICAL CONSISTENCY: Only add details that are physically and contextually plausible. Indoor scenes don't have horizons. Underwater scenes don't have dust. Night scenes don't have harsh sunlight. Think before you add.
+
+5. CONCRETE LANGUAGE: Replace every vague adjective with a specific, evocative descriptor. "Beautiful sunset" → "molten amber and deep crimson sunset bleeding into indigo twilight with cirrus clouds catching the last magenta light". "Nice texture" → "hand-worn oak grain with deep honey-toned patina and hairline age cracks".
+
+6. OUTPUT FORMAT: Return ONLY the enhanced prompt text. No quotes, no labels, no explanations, no preamble, no "Enhanced prompt:" prefix. Just the prompt itself.`;
 
   const response = await withRetry(() => ai.models.generateContent({
     model: "gemini-2.5-flash",
@@ -74,7 +95,7 @@ async function enhancePrompt(
       },
     ],
     config: {
-      maxOutputTokens: 1000,
+      maxOutputTokens: 2000,
     },
   }));
 
@@ -212,6 +233,8 @@ export const generate = action({
       numberOfImages: args.numberOfImages,
       imageStorageIds: [],
       model: actualModel,
+      referenceImageStorageIds: args.keepReferenceIds,
+      thinkingLevel: args.thinkingLevel,
     });
 
     try {

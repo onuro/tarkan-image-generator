@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
-import { useQuery } from "convex/react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useAction, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { calculateGenerationCost } from "@/lib/pricing";
@@ -53,6 +53,34 @@ export default function Home() {
     }
     return { totalCost: total, monthCost: month, totalImages: images, totalRuns: generations.length };
   }, [generations]);
+
+  const generate = useAction(api.images.generate);
+  const [rerunning, setRerunning] = useState(false);
+
+  const handleRerun = useCallback(async () => {
+    if (!selectedGeneration || rerunning) return;
+    const gen = selectedGeneration;
+    setRerunning(true);
+    try {
+      await generate({
+        prompt: gen.originalPrompt || gen.prompt,
+        originalPrompt: gen.originalPrompt,
+        stylePreset: gen.stylePreset,
+        styleSuffix: gen.styleSuffix,
+        aspectRatio: gen.aspectRatio,
+        numberOfImages: gen.numberOfImages,
+        referenceImageStorageIds: gen.referenceImageStorageIds?.length ? gen.referenceImageStorageIds : undefined,
+        keepReferenceIds: gen.referenceImageStorageIds?.length ? gen.referenceImageStorageIds : undefined,
+        enhancePrompt: gen.wasEnhanced || false,
+        thinkingLevel: gen.thinkingLevel === "low" || gen.thinkingLevel === "high" ? gen.thinkingLevel : undefined,
+        model: gen.model,
+      });
+    } catch {
+      // errors will show in the new generation's status
+    } finally {
+      setRerunning(false);
+    }
+  }, [selectedGeneration, rerunning, generate]);
 
   const handleGenerated = (_generationId: Id<"generations">) => {
     // Auto-selection handled by the useEffect above
@@ -135,11 +163,33 @@ export default function Home() {
           <h2 className="text-sm font-semibold truncate">
             {selectedGeneration ? selectedGeneration.prompt : "Gallery"}
           </h2>
-          {selectedGeneration?.model && (
-            <span className="text-[11px] text-muted-foreground shrink-0 px-2 py-0.5 rounded-full bg-muted">
-              {selectedGeneration.model}
-            </span>
-          )}
+          <div className="flex items-center gap-2 shrink-0">
+            {selectedGeneration?.model && (
+              <span className="text-[11px] text-muted-foreground px-2 py-0.5 rounded-full bg-muted">
+                {selectedGeneration.model}
+              </span>
+            )}
+            {selectedGeneration && selectedGeneration.status === "complete" && (
+              <button
+                onClick={handleRerun}
+                disabled={rerunning}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-default"
+              >
+                {rerunning ? (
+                  <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                ) : (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+                    <path d="M21 3v5h-5" />
+                  </svg>
+                )}
+                {rerunning ? "Rerunning..." : "Rerun"}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Gallery Content */}
@@ -159,6 +209,8 @@ export default function Home() {
               error={selectedGeneration.error}
               aspectRatio={selectedGeneration.aspectRatio}
               promptTokens={selectedGeneration.promptTokens}
+              thinkingLevel={selectedGeneration.thinkingLevel}
+              referenceImageStorageIds={selectedGeneration.referenceImageStorageIds}
             />
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">

@@ -43,6 +43,8 @@ export const create = internalMutation({
     numberOfImages: v.number(),
     imageStorageIds: v.array(v.id("_storage")),
     model: v.optional(v.string()),
+    referenceImageStorageIds: v.optional(v.array(v.id("_storage"))),
+    thinkingLevel: v.optional(v.string()),
   },
   returns: v.id("generations"),
   handler: async (ctx, args) => {
@@ -57,6 +59,8 @@ export const create = internalMutation({
       numberOfImages: args.numberOfImages,
       imageStorageIds: args.imageStorageIds,
       model: args.model,
+      referenceImageStorageIds: args.referenceImageStorageIds,
+      thinkingLevel: args.thinkingLevel,
       status: "generating",
       createdAt: Date.now(),
     });
@@ -139,7 +143,10 @@ export const cleanupOrphanedFiles = internalMutation({
   handler: async (ctx) => {
     const generations = await ctx.db.query("generations").collect();
     const referencedIds = new Set(
-      generations.flatMap((g) => g.imageStorageIds.map((id) => id.toString()))
+      generations.flatMap((g) => [
+        ...g.imageStorageIds.map((id) => id.toString()),
+        ...(g.referenceImageStorageIds ?? []).map((id) => id.toString()),
+      ])
     );
 
     const allFiles = await ctx.db.system.query("_storage").collect();

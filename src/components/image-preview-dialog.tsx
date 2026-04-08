@@ -19,6 +19,7 @@ interface ImagePreviewDialogProps {
   promptTokens?: number | null;
   imageCount?: number;
   thinkingLevel?: string;
+  referenceUrls?: string[];
   onClose: () => void;
   onNavigate: (index: number) => void;
 }
@@ -37,6 +38,7 @@ export function ImagePreviewDialog({
   promptTokens,
   imageCount,
   thinkingLevel,
+  referenceUrls,
   onClose,
   onNavigate,
 }: ImagePreviewDialogProps) {
@@ -249,6 +251,23 @@ export function ImagePreviewDialog({
               )}
             </div>
           </div>
+
+          {/* Reference Images */}
+          {referenceUrls && referenceUrls.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">References used</p>
+              <div className="flex gap-2 flex-wrap">
+                {referenceUrls.map((refUrl, i) => (
+                  <div key={i} className="space-y-1">
+                    <div className="size-12 rounded-lg overflow-hidden border border-border/50 bg-muted">
+                      <img src={refUrl} alt={`Ref @img${i + 1}`} className="w-full h-full object-cover" />
+                    </div>
+                    <p className="text-[9px] text-muted-foreground text-center font-mono">@img{i + 1}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="p-5 space-y-2 border-t border-border/50">

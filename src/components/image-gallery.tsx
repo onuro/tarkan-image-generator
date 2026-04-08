@@ -21,12 +21,17 @@ interface ImageGalleryProps {
   aspectRatio?: string;
   promptTokens?: number | null;
   thinkingLevel?: string;
+  referenceImageStorageIds?: Id<"_storage">[];
 }
 
-export function ImageGallery({ storageIds, numberOfImages, prompt, model, originalPrompt, stylePreset, styleSuffix, wasEnhanced, enhancedPrompt, status, error, aspectRatio, promptTokens, thinkingLevel }: ImageGalleryProps) {
+export function ImageGallery({ storageIds, numberOfImages, prompt, model, originalPrompt, stylePreset, styleSuffix, wasEnhanced, enhancedPrompt, status, error, aspectRatio, promptTokens, thinkingLevel, referenceImageStorageIds }: ImageGalleryProps) {
   const urls = useQuery(api.generations.getImageUrls, {
     storageIds: storageIds.length > 0 ? storageIds : [],
   });
+  const refUrls = useQuery(
+    api.generations.getImageUrls,
+    referenceImageStorageIds?.length ? { storageIds: referenceImageStorageIds } : "skip"
+  );
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   const validUrls = urls?.filter((url): url is string => url !== null) ?? [];
@@ -38,7 +43,7 @@ export function ImageGallery({ storageIds, numberOfImages, prompt, model, origin
 
   return (
     <>
-      <div className={`grid gap-5 ${cols}`}>
+      <div className={`grid gap-5 ${cols} ${numberOfImages === 1 ? "max-w-[600px]" : ""}`}>
         {/* Rendered images */}
         {storageIds.length > 0 && !urls ? (
           // URLs still loading for existing storage IDs
@@ -127,6 +132,23 @@ export function ImageGallery({ storageIds, numberOfImages, prompt, model, origin
         </p>
       )}
 
+      {/* Reference images used */}
+      {refUrls && refUrls.length > 0 && (
+        <div className="mt-8 space-y-3">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Reference images used</p>
+          <div className="flex gap-3 overflow-x-auto pb-1">
+            {refUrls.map((refUrl, i) => refUrl && (
+              <div key={i} className="shrink-0 space-y-1">
+                <div className="size-16 rounded-lg overflow-hidden border border-border/50 bg-muted">
+                  <img src={refUrl} alt={`Reference @img${i + 1}`} className="w-full h-full object-cover" />
+                </div>
+                <p className="text-[10px] text-muted-foreground text-center font-mono">@img{i + 1}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <ImagePreviewDialog
         urls={validUrls}
         currentIndex={previewIndex}
@@ -141,6 +163,7 @@ export function ImageGallery({ storageIds, numberOfImages, prompt, model, origin
         promptTokens={promptTokens}
         imageCount={numberOfImages}
         thinkingLevel={thinkingLevel}
+        referenceUrls={refUrls?.filter((u): u is string => u !== null) ?? []}
         onClose={() => setPreviewIndex(null)}
         onNavigate={setPreviewIndex}
       />
