@@ -82,7 +82,7 @@ export function ImagePreviewDialog({
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = blobUrl;
-    a.download = `tarkan-${Date.now()}.png`;
+    a.download = `hadooken-${Date.now()}.png`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
