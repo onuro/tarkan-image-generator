@@ -20,6 +20,24 @@ import {
 
 const PAGE_SIZE = 50;
 
+function timeAgo(timestamp: number): string {
+  const now = Date.now();
+  const diff = now - timestamp;
+  const mins = Math.floor(diff / 60000);
+  const hrs = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  if (hrs < 24) return `${hrs}h ago`;
+  if (days === 1) return "yesterday";
+  if (days < 7) return `${days}d ago`;
+  if (days < 14) return "last week";
+  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+  if (days < 60) return "last month";
+  return `${Math.floor(days / 30)}mo ago`;
+}
+
 function HistoryThumbnails({
   storageIds,
   totalExpected,
@@ -52,13 +70,12 @@ function HistoryThumbnails({
           width={32}
           height={32}
           className="w-full h-full object-cover"
-          unoptimized
         />
       ))}
       {Array.from({ length: pendingCount }, (_, i) => (
         <div
           key={`pending-${i}`}
-          className="w-full h-full bg-muted animate-pulse"
+          className="w-full h-full bg-foreground/10 animate-pulse"
         />
       ))}
     </div>
@@ -167,14 +184,14 @@ export function GenerationHistory({
     <div className="flex flex-col h-full">
       {/* Bulk actions bar */}
       <div className="flex items-center justify-between pl-8 pr-8 pt-7 pb-2">
-        <label className="flex items-center gap-3 text-xs text-muted-foreground cursor-pointer select-none h-6">
+        <div className="flex items-center gap-3 text-xs text-muted-foreground cursor-pointer select-none h-6">
           <Checkbox
             size="lg"
             checked={allChecked}
             onChange={selectAll}
           />
           {hasChecked ? `${checkedIds.size} selected` : "Select all"}
-        </label>
+        </div>
         {hasChecked && (
           <Button
             variant="ghost"
@@ -205,29 +222,31 @@ export function GenerationHistory({
                     onSelect(gen._id, gen.imageStorageIds, gen.prompt);
                   }
                 }}
-                className={`flex items-start gap-4 rounded-lg px-4 py-4 transition-colors hover:bg-accent group cursor-pointer ${selectedId === gen._id ? "bg-accent" : ""
+                className={`flex items-start gap-4 rounded-lg px-4 py-4 transition-colors group cursor-pointer ${selectedId === gen._id ? "bg-card dark:bg-accent" : "hover:bg-background dark:hover:bg-accent"
                   }`}
               >
-                {/* Checkbox */}
-                <label
-                  className={`flex items-start shrink-0 pt-0.5 cursor-pointer transition-opacity ${checkedIds.has(gen._id) ? "opacity-100" : "opacity-30 group-hover:opacity-100"}`}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Checkbox
-                    size="lg"
-                    checked={checkedIds.has(gen._id)}
-                    onChange={() => toggleChecked(gen._id)}
-                  />
-                </label>
-
-                {/* Thumbnails */}
-                {(gen.imageStorageIds.length > 0 || gen.status === "generating") && (
-                  <HistoryThumbnails
-                    storageIds={gen.imageStorageIds}
-                    totalExpected={gen.numberOfImages}
-                    isGenerating={gen.status === "generating"}
-                  />
-                )}
+                {/* Thumbnails + Checkbox overlay */}
+                <div className="relative shrink-0">
+                  {(gen.imageStorageIds.length > 0 || gen.status === "generating") ? (
+                    <HistoryThumbnails
+                      storageIds={gen.imageStorageIds}
+                      totalExpected={gen.numberOfImages}
+                      isGenerating={gen.status === "generating"}
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-md bg-foreground/10" />
+                  )}
+                  <div
+                    className={`absolute top-1 left-1 z-10 cursor-pointer transition-opacity ${checkedIds.has(gen._id) ? "opacity-100" : "opacity-0 group-hover:opacity-100"} [&>span]:border-0 ${checkedIds.has(gen._id) ? "" : "[&>span]:bg-background/70 [&>span]:backdrop-blur-sm"}`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Checkbox
+                      size="lg"
+                      checked={checkedIds.has(gen._id)}
+                      onChange={() => toggleChecked(gen._id)}
+                    />
+                  </div>
+                </div>
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
@@ -241,9 +260,7 @@ export function GenerationHistory({
                   ) : (
                     <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
                       <p>
-                        {gen.imageStorageIds.length}{" "}
-                        {gen.imageStorageIds.length === 1 ? "image" : "images"}
-                        {" "}&middot; {gen.aspectRatio}
+                        {gen.aspectRatio}
                         {gen.model && <> &middot; {gen.model}</>}
                         {gen.provider === "vertex" && <> &middot; <span className="text-blue-400">Vertex</span></>}
                       </p>
@@ -253,8 +270,7 @@ export function GenerationHistory({
                         )}
                         {`$${calculateGenerationCost(gen.model, gen.promptTokens, gen.imageStorageIds.length).toFixed(3)}`}
                         {" "}&middot;{" "}
-                        {new Date(gen.createdAt).toLocaleDateString()},{" "}
-                        {new Date(gen.createdAt).toLocaleTimeString()}
+                        {timeAgo(gen.createdAt)}
                       </p>
                     </div>
                   )}

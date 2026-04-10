@@ -147,16 +147,34 @@ async function generateWithGemini(
   images: { imageBytes: string; mimeType: string }[];
   promptTokens: number;
 }> {
-  const parts: any[] = [{ text: prompt }];
+  // Build a lookup from label to image data
+  const refMap = new Map(
+    refImages.map((ref) => [ref.label, { mimeType: ref.mimeType, data: ref.base64 }])
+  );
 
+  // Split prompt at @imgN markers and interleave actual image data inline
+  const parts: any[] = [];
+  const segments = prompt.split(/(@img\d+)/g);
+  for (const segment of segments) {
+    const img = refMap.get(segment);
+    if (img) {
+      parts.push({ inlineData: img });
+    } else if (segment) {
+      parts.push({ text: segment });
+    }
+  }
+
+  // Append any reference images not mentioned in the prompt at the end
   for (const ref of refImages) {
-    parts.push({ text: `[Reference image ${ref.label}]` });
-    parts.push({
-      inlineData: {
-        mimeType: ref.mimeType,
-        data: ref.base64,
-      },
-    });
+    if (!prompt.includes(ref.label)) {
+      parts.push({ text: `\n[Reference image ${ref.label}]` });
+      parts.push({
+        inlineData: {
+          mimeType: ref.mimeType,
+          data: ref.base64,
+        },
+      });
+    }
   }
 
   const config: any = {
@@ -174,7 +192,7 @@ async function generateWithGemini(
     model: modelName,
     contents: [{ role: "user", parts }],
     config,
-  }));
+  }), isVertex ? 1 : 3);
 
   const promptTokens = response.usageMetadata?.promptTokenCount ?? 0;
 
@@ -218,7 +236,25 @@ export const generate = action({
     // Step 1: Optionally enhance the RAW user prompt (no style suffix)
     let enhancedPrompt = args.prompt;
     if (args.enhancePrompt) {
-      enhancedPrompt = await enhancePrompt(ai, args.prompt);
+      // Strip @imgN tags before enhancing so the LLM doesn't mangle them,
+      // then re-insert them at their original positions afterward
+      const imgTagPattern = /@img\d+/g;
+      const imgTags: { index: number; tag: string }[] = [];
+      let match;
+      while ((match = imgTagPattern.exec(args.prompt)) !== null) {
+        imgTags.push({ index: match.index, tag: match[0] });
+      }
+      const strippedPrompt = args.prompt.replace(imgTagPattern, "<<IMG_PLACEHOLDER>>");
+      const enhanced = await enhancePrompt(ai, strippedPrompt);
+      // Restore tags: replace placeholders back in order
+      let tagIdx = 0;
+      enhancedPrompt = enhanced.replace(/<<IMG_PLACEHOLDER>>/g, () => {
+        return imgTags[tagIdx] ? imgTags[tagIdx++].tag : "";
+      });
+      // If enhancement dropped placeholders entirely, append missing tags
+      for (let i = tagIdx; i < imgTags.length; i++) {
+        enhancedPrompt += ` ${imgTags[i].tag}`;
+      }
     }
 
     // Step 2: Append style suffix AFTER enhancement
@@ -303,6 +339,11 @@ export const generate = action({
         }
 
         for (let i = 0; i < args.numberOfImages; i++) {
+          // Delay between Vertex AI calls to avoid per-minute quota limits
+          if (useVertex && i > 0) {
+            await new Promise((r) => setTimeout(r, 8000));
+          }
+
           const thinkingBudget = args.thinkingLevel === "high" ? 8192
             : args.thinkingLevel === "low" ? 2048
             : undefined;

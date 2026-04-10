@@ -57,6 +57,8 @@ const STYLE_PRESETS = [
 
 interface PromptFormProps {
   onGenerated: (generationId: Id<"generations">) => void;
+  provider: "gemini" | "vertex";
+  showProviderToggle: boolean;
 }
 
 interface ReferenceItem {
@@ -76,7 +78,7 @@ function ChevronDown() {
   );
 }
 
-export function PromptForm({ onGenerated }: PromptFormProps) {
+export function PromptForm({ onGenerated, provider, showProviderToggle }: PromptFormProps) {
   const [prompt, setPrompt] = useState("");
   const [model, setModel] = useState("imagen-4");
   const [aspectRatio, setAspectRatio] = useState("auto");
@@ -92,24 +94,6 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
   const [countOpen, setCountOpen] = useState(false);
   const [thinkingOpen, setThinkingOpen] = useState(false);
 
-  // Provider toggle state
-  const [provider, setProvider] = useState<"gemini" | "vertex">(() => {
-    if (typeof window !== "undefined") {
-      return (localStorage.getItem("tarkan-provider") as "gemini" | "vertex") || "gemini";
-    }
-    return "gemini";
-  });
-  const [availableProviders, setAvailableProviders] = useState<{ gemini: boolean; vertex: boolean } | null>(null);
-  const checkProviders = useAction(api.images.getAvailableProviders);
-  const showProviderToggle = availableProviders?.gemini && availableProviders?.vertex;
-
-  useEffect(() => {
-    checkProviders().then(setAvailableProviders).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("tarkan-provider", provider);
-  }, [provider]);
 
   const [references, setReferences] = useState<ReferenceItem[]>([]);
   const [refPreviewIndex, setRefPreviewIndex] = useState<number | null>(null);
@@ -345,27 +329,6 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
       <div className="flex-1 overflow-auto p-8 space-y-9">
-        {/* Provider Toggle */}
-        {showProviderToggle && (
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-sm">API Provider</Label>
-              <p className="text-xs text-muted-foreground mt-1.5">
-                {provider === "vertex" ? "Using Vertex AI (GCP)" : "Using Gemini API (AI Studio)"}
-              </p>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={provider === "vertex"}
-              onClick={() => setProvider(provider === "vertex" ? "gemini" : "vertex")}
-              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${provider === "vertex" ? "bg-blue-500" : "bg-zinc-700"}`}
-            >
-              <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm ring-0 transition-transform ${provider === "vertex" ? "translate-x-4" : "translate-x-0"}`} />
-            </button>
-          </div>
-        )}
-
         {/* Model */}
         <div>
           <Label className="mb-3 block">Model</Label>
@@ -405,7 +368,7 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
               onKeyDown={handleTextareaKeyDown}
               onBlur={() => { setTimeout(() => setMentionOpen(false), 150); }}
               rows={4}
-              className="resize-none border-transparent bg-muted px-5 py-4 text-[15px] leading-relaxed"
+              className="resize-none border-none bg-muted px-5 py-4 text-[15px] leading-relaxed focus-visible:ring-0 focus-visible:ring-offset-0"
             />
             {mentionOpen && filteredMentions.length > 0 && (
               <div className="absolute z-50 left-2 bottom-full mb-1 w-56 rounded-lg border border-border bg-popover shadow-lg overflow-hidden">
@@ -502,19 +465,34 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
           </div>
         </div>
 
-        {/* AI Enhance Toggle */}
-        <div className="flex items-center justify-between">
-          <div>
+        {/* AI Enhance + Thinking */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <button type="button" role="switch" aria-checked={enhancePrompt} onClick={() => setEnhancePrompt(!enhancePrompt)} className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${enhancePrompt ? "bg-zinc-400" : "bg-zinc-700"}`}>
+              <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm ring-0 transition-transform ${enhancePrompt ? "translate-x-4" : "translate-x-0"}`} />
+            </button>
             <Label className="text-sm">AI Enhance</Label>
-            <p className="text-xs text-muted-foreground mt-1.5">Rewrite prompt with Gemini for better results</p>
           </div>
-          <button type="button" role="switch" aria-checked={enhancePrompt} onClick={() => setEnhancePrompt(!enhancePrompt)} className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${enhancePrompt ? "bg-zinc-400" : "bg-zinc-700"}`}>
-            <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm ring-0 transition-transform ${enhancePrompt ? "translate-x-4" : "translate-x-0"}`} />
-          </button>
+          <div className="flex items-center gap-3">
+            <Label className="text-sm">Thinking</Label>
+            <DropdownMenu open={thinkingOpen} onOpenChange={setThinkingOpen}>
+              <DropdownMenuTrigger className="flex items-center gap-2 rounded-lg bg-muted px-3 py-1.5 text-sm hover:bg-accent transition-colors">
+                <span>{thinkingLevel === "none" ? "Off" : thinkingLevel === "low" ? "Low" : "High"}</span>
+                <ChevronDown />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuRadioGroup value={thinkingLevel} onValueChange={(v) => { if (v) { setThinkingLevel(v as "none" | "low" | "high"); setThinkingOpen(false); } }}>
+                  <DropdownMenuRadioItem value="none">Off</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="low">Low</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="high">High</DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
-        {/* Aspect Ratio + Image Count + Thinking */}
-        <div className="grid grid-cols-3 gap-4">
+        {/* Aspect Ratio + Image Count */}
+        <div className="grid grid-cols-2 gap-4">
           <div>
             <Label className="mb-3 block">Aspect Ratio</Label>
             <DropdownMenu open={aspectOpen} onOpenChange={setAspectOpen}>
@@ -544,23 +522,6 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
                   {IMAGE_COUNTS.map((n) => (
                     <DropdownMenuRadioItem key={n} value={String(n)}>{n} {n === 1 ? "image" : "images"}</DropdownMenuRadioItem>
                   ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-
-          <div>
-            <Label className="mb-3 block">Thinking</Label>
-            <DropdownMenu open={thinkingOpen} onOpenChange={setThinkingOpen}>
-              <DropdownMenuTrigger className="flex items-center justify-between w-full rounded-lg bg-muted px-4 py-2.5 text-sm hover:bg-accent transition-colors">
-                <span>{thinkingLevel === "none" ? "Off" : thinkingLevel === "low" ? "Low" : "High"}</span>
-                <ChevronDown />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuRadioGroup value={thinkingLevel} onValueChange={(v) => { if (v) { setThinkingLevel(v as "none" | "low" | "high"); setThinkingOpen(false); } }}>
-                  <DropdownMenuRadioItem value="none">Off</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="low">Low</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="high">High</DropdownMenuRadioItem>
                 </DropdownMenuRadioGroup>
               </DropdownMenuContent>
             </DropdownMenu>

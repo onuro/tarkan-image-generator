@@ -5,7 +5,7 @@ import { Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const checkboxVariants = cva(
-  "shrink-0 cursor-pointer border-2 border-muted-foreground/50 bg-transparent transition-colors flex items-center justify-center peer",
+  "shrink-0 cursor-pointer border-2 border-muted-foreground/50 bg-transparent transition-colors flex items-center justify-center",
   {
     variants: {
       size: {
@@ -20,25 +20,31 @@ const checkboxVariants = cva(
   }
 )
 
-export interface CheckboxProps
-  extends Omit<React.ComponentProps<"input">, "size" | "type">,
-    VariantProps<typeof checkboxVariants> {}
+export interface CheckboxProps extends VariantProps<typeof checkboxVariants> {
+  checked?: boolean
+  onChange?: () => void
+  className?: string
+}
 
-const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
-  ({ className, size, checked, onChange, ...props }, ref) => (
-    <span className={cn(checkboxVariants({ size, className }), checked && "bg-primary border-primary")}>
-      <input
-        ref={ref}
-        type="checkbox"
-        checked={checked}
-        onChange={onChange}
-        className="sr-only"
-        {...props}
-      />
+function Checkbox({ className, size, checked, onChange }: CheckboxProps) {
+  return (
+    <span
+      role="checkbox"
+      aria-checked={checked}
+      tabIndex={0}
+      onClick={onChange}
+      onKeyDown={(e) => {
+        if (e.key === " " || e.key === "Enter") {
+          e.preventDefault()
+          onChange?.()
+        }
+      }}
+      className={cn(checkboxVariants({ size, className }), checked && "bg-primary border-primary")}
+    >
       {checked && <Check className="text-primary-foreground" strokeWidth={3} />}
     </span>
   )
-)
+}
 Checkbox.displayName = "Checkbox"
 
 export { Checkbox, checkboxVariants }
