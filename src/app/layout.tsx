@@ -28,7 +28,7 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="h-full overflow-hidden">
         <ConvexClientProvider>{children}</ConvexClientProvider>
       </body>
     </html>

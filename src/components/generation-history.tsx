@@ -6,6 +6,7 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { calculateGenerationCost } from "@/lib/pricing";
 import {
   Pagination,
@@ -166,12 +167,11 @@ export function GenerationHistory({
     <div className="flex flex-col h-full">
       {/* Bulk actions bar */}
       <div className="flex items-center justify-between pl-8 pr-8 pt-7 pb-2">
-        <label className="flex items-center gap-3 text-xs text-muted-foreground cursor-pointer select-none">
-          <input
-            type="checkbox"
+        <label className="flex items-center gap-3 text-xs text-muted-foreground cursor-pointer select-none h-6">
+          <Checkbox
+            size="lg"
             checked={allChecked}
             onChange={selectAll}
-            className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer"
           />
           {hasChecked ? `${checkedIds.size} selected` : "Select all"}
         </label>
@@ -213,11 +213,10 @@ export function GenerationHistory({
                   className={`flex items-start shrink-0 pt-0.5 cursor-pointer transition-opacity ${checkedIds.has(gen._id) ? "opacity-100" : "opacity-30 group-hover:opacity-100"}`}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <input
-                    type="checkbox"
+                  <Checkbox
+                    size="lg"
                     checked={checkedIds.has(gen._id)}
                     onChange={() => toggleChecked(gen._id)}
-                    className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer"
                   />
                 </label>
 
@@ -246,6 +245,7 @@ export function GenerationHistory({
                         {gen.imageStorageIds.length === 1 ? "image" : "images"}
                         {" "}&middot; {gen.aspectRatio}
                         {gen.model && <> &middot; {gen.model}</>}
+                        {gen.provider === "vertex" && <> &middot; <span className="text-blue-400">Vertex</span></>}
                       </p>
                       <p>
                         {gen.promptTokens != null && (

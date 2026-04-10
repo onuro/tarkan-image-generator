@@ -13,17 +13,40 @@ const GEMINI_MODELS: Record<string, string> = {
   "nano-banana-og": "gemini-2.5-flash-image",
 };
 
-function createGenAIClient(): GoogleGenAI {
-  const gcpProject = process.env.GOOGLE_CLOUD_PROJECT;
-  const gcpCredentials = process.env.GOOGLE_CLOUD_CREDENTIALS;
+function hasVertexConfig(): boolean {
+  // Vertex AI Express Mode (API key only) or full service account mode
+  return !!process.env.GOOGLE_VERTEX_API_KEY ||
+    !!(process.env.GOOGLE_CLOUD_PROJECT && process.env.GOOGLE_CLOUD_CREDENTIALS);
+}
 
-  if (gcpProject && gcpCredentials) {
+function hasGeminiConfig(): boolean {
+  return !!process.env.GOOGLE_AI_API_KEY;
+}
+
+function createGenAIClient(preferVertex?: boolean): GoogleGenAI {
+  const vertexAvailable = hasVertexConfig();
+  const geminiAvailable = hasGeminiConfig();
+
+  const useVertex =
+    preferVertex === true ? vertexAvailable :
+    preferVertex === false ? !geminiAvailable && vertexAvailable :
+    vertexAvailable; // default: Vertex takes priority (original behavior)
+
+  if (useVertex && vertexAvailable) {
+    // Vertex AI Express Mode
+    if (process.env.GOOGLE_VERTEX_API_KEY) {
+      return new GoogleGenAI({
+        vertexai: true,
+        apiKey: process.env.GOOGLE_VERTEX_API_KEY,
+      });
+    }
+    // Full service account mode
     return new GoogleGenAI({
       vertexai: true,
-      project: gcpProject,
+      project: process.env.GOOGLE_CLOUD_PROJECT!,
       location: process.env.GOOGLE_CLOUD_LOCATION || "us-central1",
       googleAuthOptions: {
-        credentials: JSON.parse(gcpCredentials),
+        credentials: JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS!),
       },
     });
   }
@@ -31,7 +54,7 @@ function createGenAIClient(): GoogleGenAI {
   const apiKey = process.env.GOOGLE_AI_API_KEY;
   if (!apiKey) {
     throw new Error(
-      "Set either GOOGLE_CLOUD_PROJECT + GOOGLE_CLOUD_CREDENTIALS (Vertex AI) or GOOGLE_AI_API_KEY (AI Studio). " +
+      "Set GOOGLE_VERTEX_API_KEY (Vertex AI Express), or GOOGLE_CLOUD_PROJECT + GOOGLE_CLOUD_CREDENTIALS (Vertex AI), or GOOGLE_AI_API_KEY (AI Studio). " +
         "Add them in the Convex dashboard under Settings > Environment Variables."
     );
   }
@@ -118,7 +141,8 @@ async function generateWithGemini(
   modelName: string,
   prompt: string,
   refImages: { base64: string; mimeType: string; label: string }[],
-  thinkingBudget?: number
+  thinkingBudget?: number,
+  isVertex?: boolean
 ): Promise<{
   images: { imageBytes: string; mimeType: string }[];
   promptTokens: number;
@@ -138,6 +162,9 @@ async function generateWithGemini(
   const config: any = {
     responseModalities: ["TEXT", "IMAGE"],
   };
+  if (isVertex) {
+    config.seed = Math.floor(Math.random() * 2 ** 31);
+  }
   const supportsThinking = !modelName.includes("2.5-flash-image");
   if (thinkingBudget !== undefined && supportsThinking) {
     config.thinkingConfig = { thinkingBudget };
@@ -178,10 +205,12 @@ export const generate = action({
     enhancePrompt: v.optional(v.boolean()),
     thinkingLevel: v.optional(v.union(v.literal("low"), v.literal("high"))),
     model: v.optional(v.string()),
+    provider: v.optional(v.union(v.literal("gemini"), v.literal("vertex"))),
   },
   returns: v.id("generations"),
   handler: async (ctx, args): Promise<Id<"generations">> => {
-    const ai = createGenAIClient();
+    const useVertex = args.provider === "vertex";
+    const ai = createGenAIClient(args.provider ? useVertex : undefined);
     const selectedModel = args.model || "imagen-4";
     const modelName = GEMINI_MODELS[selectedModel] || GEMINI_MODELS["imagen-4"];
     const isImagen = selectedModel === "imagen-4";
@@ -233,6 +262,7 @@ export const generate = action({
       numberOfImages: args.numberOfImages,
       imageStorageIds: [],
       model: actualModel,
+      provider: args.provider,
       referenceImageStorageIds: args.keepReferenceIds,
       thinkingLevel: args.thinkingLevel,
     });
@@ -265,9 +295,7 @@ export const generate = action({
           }
         }
       } else {
-        const geminiModel = isImagen
-          ? GEMINI_MODELS["nano-banana-pro"]
-          : modelName;
+        const geminiModel = GEMINI_MODELS[actualModel] || modelName;
 
         let fullPrompt = finalPrompt;
         if (args.aspectRatio !== "auto") {
@@ -284,7 +312,8 @@ export const generate = action({
             geminiModel,
             fullPrompt,
             refImages,
-            thinkingBudget
+            thinkingBudget,
+            useVertex
           );
 
           await ctx.runMutation(internal.generations.addTokenUsage, {
@@ -292,7 +321,7 @@ export const generate = action({
             promptTokens: result.promptTokens,
           });
 
-          for (const img of result.images) {
+          for (const img of result.images.slice(0, 1)) {
             const buffer = Buffer.from(img.imageBytes, "base64");
             const blob = new Blob([buffer], { type: img.mimeType });
             const storageId = await ctx.storage.store(blob);
@@ -318,12 +347,14 @@ export const generate = action({
       let errorMsg: string;
 
       if (raw.includes('"code":429') || raw.includes("RESOURCE_EXHAUSTED")) {
-        const isVertex = !!process.env.GOOGLE_CLOUD_PROJECT;
-        const retryMatch = raw.match(/Please retry in (\d+h\d+m)/);
+        const usedVertex = args.provider === "vertex" || (!args.provider && hasVertexConfig());
+        const retryMatch = raw.match(/Please retry in (\d+h?\d*m)/);
         const retryInfo = retryMatch ? ` Try again in ~${retryMatch[1]}.` : "";
-        errorMsg = isVertex
-          ? `Vertex AI quota exceeded.${retryInfo} Check your GCP quota settings.`
+        errorMsg = usedVertex
+          ? `Vertex AI rate limit hit — too many requests per minute.${retryInfo} Try fewer images or wait a moment.`
           : `Daily API quota exceeded (250 requests).${retryInfo || " Try again tomorrow."}`;
+      } else if (raw.includes("Your request couldn't be completed")) {
+        errorMsg = "The model couldn't complete this request — likely content filtering or a transient error. Try rephrasing your prompt or try again.";
       } else {
         errorMsg = raw.slice(0, 500);
       }
@@ -345,4 +376,16 @@ export const generate = action({
 
     return generationId;
   },
+});
+
+export const getAvailableProviders = action({
+  args: {},
+  returns: v.object({
+    gemini: v.boolean(),
+    vertex: v.boolean(),
+  }),
+  handler: async (): Promise<{ gemini: boolean; vertex: boolean }> => ({
+    gemini: hasGeminiConfig(),
+    vertex: hasVertexConfig(),
+  }),
 });

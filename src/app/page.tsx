@@ -127,7 +127,7 @@ export default function Home() {
         </div>
 
         {/* Sidebar 2: History */}
-        <div className="w-96 shrink-0 flex flex-col">
+        <div className="w-96 shrink-0 flex flex-col min-h-0">
           <div className="flex items-center justify-between px-7 h-18 shrink-0 border-b border-border/50">
             <h2 className="text-sm font-semibold">History</h2>
             {generations && (
@@ -161,6 +161,11 @@ export default function Home() {
             {selectedGeneration?.model && (
               <span className="text-[11px] text-muted-foreground px-2 py-0.5 rounded-full bg-muted">
                 {selectedGeneration.model}
+              </span>
+            )}
+            {selectedGeneration?.provider === "vertex" && (
+              <span className="text-[11px] text-blue-400 px-2 py-0.5 rounded-full bg-blue-500/20">
+                Vertex AI
               </span>
             )}
             {selectedGeneration && selectedGeneration.status === "complete" && (

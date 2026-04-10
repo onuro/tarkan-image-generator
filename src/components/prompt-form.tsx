@@ -92,6 +92,25 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
   const [countOpen, setCountOpen] = useState(false);
   const [thinkingOpen, setThinkingOpen] = useState(false);
 
+  // Provider toggle state
+  const [provider, setProvider] = useState<"gemini" | "vertex">(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem("tarkan-provider") as "gemini" | "vertex") || "gemini";
+    }
+    return "gemini";
+  });
+  const [availableProviders, setAvailableProviders] = useState<{ gemini: boolean; vertex: boolean } | null>(null);
+  const checkProviders = useAction(api.images.getAvailableProviders);
+  const showProviderToggle = availableProviders?.gemini && availableProviders?.vertex;
+
+  useEffect(() => {
+    checkProviders().then(setAvailableProviders).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("tarkan-provider", provider);
+  }, [provider]);
+
   const [references, setReferences] = useState<ReferenceItem[]>([]);
   const [refPreviewIndex, setRefPreviewIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -313,6 +332,7 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
         enhancePrompt,
         thinkingLevel: thinkingLevel !== "none" ? thinkingLevel : undefined,
         model,
+        provider: showProviderToggle ? provider : undefined,
       });
       onGenerated(generationId);
     } catch (err) {
@@ -325,6 +345,27 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
       <div className="flex-1 overflow-auto p-8 space-y-9">
+        {/* Provider Toggle */}
+        {showProviderToggle && (
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-sm">API Provider</Label>
+              <p className="text-xs text-muted-foreground mt-1.5">
+                {provider === "vertex" ? "Using Vertex AI (GCP)" : "Using Gemini API (AI Studio)"}
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={provider === "vertex"}
+              onClick={() => setProvider(provider === "vertex" ? "gemini" : "vertex")}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${provider === "vertex" ? "bg-blue-500" : "bg-zinc-700"}`}
+            >
+              <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm ring-0 transition-transform ${provider === "vertex" ? "translate-x-4" : "translate-x-0"}`} />
+            </button>
+          </div>
+        )}
+
         {/* Model */}
         <div>
           <Label className="mb-3 block">Model</Label>
@@ -589,6 +630,11 @@ export function PromptForm({ onGenerated }: PromptFormProps) {
           {thinkingLevel !== "none" && (
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted text-[11px] text-muted-foreground">
               + Thinking ({thinkingLevel})
+            </div>
+          )}
+          {showProviderToggle && provider === "vertex" && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-500/20 text-[11px] text-blue-400">
+              Vertex AI
             </div>
           )}
         </div>

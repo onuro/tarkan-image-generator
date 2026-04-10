@@ -41,6 +41,30 @@ export function ImageGallery({ storageIds, numberOfImages, prompt, model, origin
   const isStillGenerating = remainingSkeletons > 0;
   const cols = numberOfImages === 1 ? "grid-cols-1" : "grid-cols-2";
 
+  // Failed with no images — show centered error
+  if (isFailed && validUrls.length === 0 && storageIds.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+        <svg
+          width="48"
+          height="48"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="mb-4 text-destructive/50"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        <p className="text-sm text-destructive">{error || "Generation failed"}</p>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className={`grid gap-5 ${cols} ${numberOfImages === 1 ? "max-w-[600px]" : ""}`}>

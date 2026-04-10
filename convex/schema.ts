@@ -25,6 +25,7 @@ export default defineSchema({
     numberOfImages: v.number(),
     imageStorageIds: v.array(v.id("_storage")),
     model: v.optional(v.string()),
+    provider: v.optional(v.string()),
     referenceImageStorageIds: v.optional(v.array(v.id("_storage"))),
     thinkingLevel: v.optional(v.string()),
     promptTokens: v.optional(v.number()),
